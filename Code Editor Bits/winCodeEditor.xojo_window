@@ -60,6 +60,19 @@ End
 #tag WindowCode
 #tag EndWindowCode
 
+#tag Events CodeEditorCanvas1
+	#tag Event
+		Sub Open()
+		  Me.TextColor = &cFFFF
+		  Me.TextFont = "Menlo"
+		  Me.TextSize = 14
+		  
+		  Me.Text = "123" + EndOfLine + "4567" + EndOfLine + "891011" + EndOfLine + "1213" + EndOfLine + "14" 
+		  
+		  me.SelectedTextBackgroundColor = &c007700
+		End Sub
+	#tag EndEvent
+#tag EndEvents
 #tag ViewBehavior
 	#tag ViewProperty
 		Name="MinimumWidth"

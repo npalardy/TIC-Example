@@ -2,7 +2,7 @@
 Protected Class CodeEditorCanvas
 Inherits TextInputCanvas
 	#tag Event
-		Function BaselineAtIndex(index As Integer) As Integer
+		Function BaselineAtIndex(index as integer) As integer
 		  //  Triggers the user's DiscardIncompleteText event. This is called when the
 		  //  system wishes to discard the incomplete text.
 		  // 
@@ -17,7 +17,7 @@ Inherits TextInputCanvas
 	#tag EndEvent
 
 	#tag Event
-		Function CharacterAtPoint(x As Integer, y As Integer) As Integer
+		Function CharacterAtPoint(x as integer, y as integer) As integer
 		  //  Triggers the user's FireCharacterAtPoint event. The user should return the
 		  //  zero-based character index that exists at the given point in view-local 
 		  //  coordinates.
@@ -49,7 +49,7 @@ Inherits TextInputCanvas
 	#tag EndEvent
 
 	#tag Event
-		Function DoCommand(command As String) As Boolean
+		Function DoCommand(command as string) As boolean
 		  // text system default binding are in /System/Library/Frameworks/AppKit.framework/Resources/StandardKeyBinding.dict.
 		  // to look at these grab a copy of https://en.freedownloadmanager.org/Mac-OS/KeyBindingsEditor-FREE.html
 		  //                      since its not posted to https://github.com/gknops?tab=repositories
@@ -62,48 +62,127 @@ Inherits TextInputCanvas
 		  // left to right writing systems
 		  
 		  dbglog currentmethodname + " " + command
+		  Dim requiresRedraw As Boolean = False
 		  
 		  Select Case command
 		    // 
 		    // // NSResponder: Selection movement and scrolling
-		  Case CmdMoveForward
+		  Case CmdMoveForward, CmdMoveForwardAndModifySelection
+		    If Keyboard.ShiftKey Then
+		      SetSelStart
+		    Else
+		      ResetSelStart
+		    End If
+		    
 		    mInsertionPosition = Min(mInsertionPosition + 1, Len(mTextBuffer))
 		    dbglog " insertion pos = " + Str(mInsertionPosition)
+		    requiresRedraw = True
 		    
-		  Case CmdMoveRight
+		  Case CmdMoveRight, CmdMoveRightAndModifySelection
+		    If Keyboard.ShiftKey Then
+		      SetSelStart
+		    Else
+		      ResetSelStart
+		    End If
+		    
 		    mInsertionPosition = Min(mInsertionPosition + 1, Len(mTextBuffer))
 		    dbglog " insertion pos = " + Str(mInsertionPosition)
+		    requiresRedraw = True
 		    
-		  Case CmdMoveBackward
+		  Case CmdMoveBackward, CmdMoveBackwardAndModifySelection
+		    If Keyboard.ShiftKey Then
+		      SetSelStart
+		    Else
+		      ResetSelStart
+		    End If
+		    
 		    mInsertionPosition = Max(mInsertionPosition - 1, 0)
 		    dbglog " insertion pos = " + Str(mInsertionPosition)
+		    requiresRedraw = True
 		    
-		  Case CmdMoveLeft
+		  Case CmdMoveLeft, CmdMoveLeftAndModifySelection
+		    If Keyboard.ShiftKey Then
+		      SetSelStart
+		    Else
+		      ResetSelStart
+		    End If
+		    
 		    mInsertionPosition = Max(mInsertionPosition - 1, 0)
 		    dbglog " insertion pos = " + Str(mInsertionPosition)
+		    requiresRedraw = True
 		    
-		  Case CmdMoveUp
+		  Case CmdMoveUp, CmdMoveUpAndModifySelection
+		    If Keyboard.ShiftKey Then
+		      SetSelStart
+		    Else
+		      ResetSelStart
+		    End If
+		    
 		    Dim line, column As Integer
 		    PositionToLineAndColumn(mInsertionPosition, line, column)
+		    #If targetmacOS
+		      If line = 0 And column > 0 Then
+		        column = 0
+		      End If
+		    #EndIf
+		    
 		    line = Max(line - 1, 0)
-		    mInsertionPosition = LineColumnToPosition(line, column)
+		    If column > Len(mLines(line)) Then
+		      column =  Len( mlines(line) ) 
+		    End If
+		    mInsertionPosition = LineColumnToPosition(line, column )
 		    
 		    dbglog " insertion pos = " + Str(mInsertionPosition)
+		    requiresRedraw = True
 		    
-		  Case CmdMoveDown
+		    
+		  Case CmdMoveDown, CmdMoveDownAndModifySelection
+		    If Keyboard.ShiftKey Then
+		      SetSelStart
+		    Else
+		      ResetSelStart
+		    End If
+		    
 		    Dim line, column As Integer
 		    PositionToLineAndColumn(mInsertionPosition, line, column)
-		    line = line + 1
+		    #If targetmacOS
+		      If line + 1 > mLines.ubound Then
+		        column = Len(mLines(mLines.ubound))
+		      End If
+		    #EndIf
+		    line = Min(line + 1, mLines.ubound)
+		    If column > Len(mLines(line)) Then
+		      column =  Len( mlines(line) ) 
+		    End If
 		    mInsertionPosition = LineColumnToPosition(line, column)
 		    dbglog " insertion pos = " + Str(mInsertionPosition)
+		    
+		    requiresRedraw = True
 		    
 		    // Case CmdMoveWordForward
 		    // Case CmdMoveWordBackward
-		  Case CmdMoveToBeginningOfLine
+		    
+		  Case CmdMoveToBeginningOfLine, CmdMoveToBeginningOfLineAndModifySelection
+		    If Keyboard.ShiftKey Then
+		      SetSelStart
+		    Else
+		      ResetSelStart
+		    End If
+		    
 		    MoveToBeginningOfLine
 		    
-		  Case CmdMoveToEndOfLine
+		    requiresRedraw = True
+		    
+		  Case CmdMoveToEndOfLine, CmdMoveToEndOfLineAndModifySelection
+		    If Keyboard.ShiftKey Then
+		      SetSelStart
+		    Else
+		      ResetSelStart
+		    End If
+		    
 		    MoveToEndOfLine
+		    
+		    requiresRedraw = True
 		    
 		    // Case CmdMoveToBeginningOfParagraph
 		    // Case CmdMoveToEndOfParagraph
@@ -118,9 +197,7 @@ Inherits TextInputCanvas
 		    // Case CmdMoveForwardAndModifySelection
 		    // Case CmdMoveWordForwardAndModifySelection
 		    // Case CmdMoveWordBackwardAndModifySelection
-		    // Case CmdMoveUpAndModifySelection
-		    // Case CmdMoveDownAndModifySelection
-		    // 
+		    
 		    // // NSResponder: Selection movement and scrolling
 		    // Case CmdMoveToBeginningOfLineAndModifySelection
 		    // Case CmdMoveToEndOfLineAndModifySelection
@@ -136,23 +213,32 @@ Inherits TextInputCanvas
 		    // // NSResponder: Selection movement and scrolling (added in 10.3)
 		    // Case CmdMoveWordRight
 		    // Case CmdMoveWordLeft
-		  Case CmdMoveRightAndModifySelection
-		    mInsertionPosition = Min(mInsertionPosition + 1, Len(mTextBuffer))
-		    dbglog " insertion pos = " + Str(mInsertionPosition)
-		    
-		  Case CmdMoveLeftAndModifySelection
-		    mInsertionPosition = Max(mInsertionPosition - 1, 0)
-		    dbglog " insertion pos = " + Str(mInsertionPosition)
 		    
 		    // Case CmdMoveWordRightAndModifySelection
 		    // Case CmdMoveWordLeftAndModifySelection
 		    // 
 		    // // NSResponder: Selection movement and scrolling (added in 10.6)
-		  Case CmdMoveToLeftEndOfLine
+		  Case CmdMoveToLeftEndOfLine, CmdMoveToLeftEndOfLineAndModifySelection
+		    If Keyboard.ShiftKey Then
+		      SetSelStart
+		    Else
+		      ResetSelStart
+		    End If
+		    
 		    MoveToBeginningOfLine
 		    
-		  Case CmdMoveToRightEndOfLine
+		    requiresRedraw = True
+		    
+		  Case CmdMoveToRightEndOfLine, CmdMoveToRightEndOfLineAndModifySelection
+		    If Keyboard.ShiftKey Then
+		      SetSelStart
+		    Else
+		      ResetSelStart
+		    End If
+		    
 		    MoveToEndOfLine
+		    
+		    requiresRedraw = True
 		    
 		    // Case CmdMoveToLeftEndOfLineAndModifySelection
 		    // Case CmdMoveToRightEndOfLineAndModifySelection
@@ -182,16 +268,19 @@ Inherits TextInputCanvas
 		    // Case CmdInsertTab
 		    // Case CmdInsertBacktab
 		  Case CmdInsertNewline
+		    ResetSelStart
 		    InsertText(EndOfLine)
-		    Self.Invalidate
+		    requiresRedraw = True
 		    
 		  Case CmdInsertNewlineIgnoringFieldEditor
+		    ResetSelStart
 		    InsertText(EndOfLine)
-		    Self.Invalidate
+		    requiresRedraw = True
 		    
 		  Case CmdInsertLineBreak
+		    ResetSelStart
 		    InsertText(EndOfLine)
-		    Self.Invalidate
+		    requiresRedraw = True
 		    
 		    // Case CmdInsertParagraphSeparator
 		    // Case CmdInsertTabIgnoringFieldEditor
@@ -207,13 +296,14 @@ Inherits TextInputCanvas
 		    // 
 		    // // NSResponder: Deletions
 		    // Case CmdDeleteForward
-		   Case CmdDeleteBackward
+		  Case CmdDeleteBackward
+		    ResetSelStart
 		    If mInsertionPosition > 0 Then
 		      mTextBuffer = Left(mTextBuffer, mInsertionPosition - 1) + Mid(mTextBuffer, mInsertionPosition + 1)
 		      
 		      mInsertionPosition = mInsertionPosition - 1
 		      
-		      Self.Invalidate
+		      requiresRedraw = True
 		    End If
 		    
 		    // Case CmdDeleteBackwardByDecomposingPreviousCharacter
@@ -253,11 +343,16 @@ Inherits TextInputCanvas
 		    // Case CmdUndo
 		    
 		  End Select
+		  
+		  If requiresRedraw = True Then
+		    Self.invalidate
+		  End If
+		  
 		End Function
 	#tag EndEvent
 
 	#tag Event
-		Function FontNameAtLocation(location As Integer) As String
+		Function FontNameAtLocation(location as integer) As string
 		  //  Triggers the user's FontNameAtLocation event. The implementor should return
 		  //  the font used for rendering the specified character.
 		  // 
@@ -271,7 +366,7 @@ Inherits TextInputCanvas
 	#tag EndEvent
 
 	#tag Event
-		Function FontSizeAtLocation(location As Integer) As Single
+		Function FontSizeAtLocation(location as integer) As integer
 		  // FireFontSizeAtLocation
 		  // 
 		  //  Triggers the user's FontNameAtLocation event. The implementor should return
@@ -317,7 +412,7 @@ Inherits TextInputCanvas
 	#tag EndEvent
 
 	#tag Event
-		Sub InsertText(text As String, range As TextRange)
+		Sub InsertText(text as string, range as TextRange)
 		  //  Triggers the user's InsertText event. The implementor should replace the content
 		  //  in its document at `range` with the given text. If `range` is nil, the 
 		  //  implementor should insert the text at its current selection.
@@ -333,7 +428,7 @@ Inherits TextInputCanvas
 	#tag EndEvent
 
 	#tag Event
-		Function IsEditable() As Boolean
+		Function IsEditable() As boolean
 		  //  Triggers the user's IsEditable event. The implementor should return whether
 		  //  or not its content can be edited.
 		  // 
@@ -352,7 +447,7 @@ Inherits TextInputCanvas
 	#tag EndEvent
 
 	#tag Event
-		Function KeyFallsThrough(key As String) As Boolean
+		Function KeyFallsThrough(key as string) As boolean
 		  //  Triggers the user's KeyFallsThrough event. The implementor should return whether
 		  //  or not this key should be passed along to other Xojo code
 		  // 
@@ -373,7 +468,7 @@ Inherits TextInputCanvas
 	#tag EndEvent
 
 	#tag Event
-		Function MouseDown(x As Integer, y As Integer) As Boolean
+		Function MouseDown(x as Integer, y as Integer) As Boolean
 		  // double and triple clicks are both TIME & SPACE
 		  // if you click move a long way click this should not be a double or triple click
 		  
@@ -386,7 +481,7 @@ Inherits TextInputCanvas
 		    mClickType  = ClickTypes.triple
 		    dbglog currentmethodname + " triple click"
 		    // double click ?
-		  Elseif (mClickType = ClickTypes.Single) _
+		  ElseIf (mClickType = ClickTypes.Single) _
 		    And (Ticks - mLastClickTime < DoubleClickInterval) _
 		    And ( Abs(x - mLastClickX) < 5) _
 		    And ( Abs(y - mLastClickY) < 5)  Then
@@ -412,13 +507,20 @@ Inherits TextInputCanvas
 		  Select Case mClickType
 		    
 		  Case ClickTypes.Single
+		    If Keyboard.ShiftKey Then
+		      SetSelStart
+		    Else
+		      ResetSelStart
+		    End If
+		    
 		    mInsertionPosition = LineColumnToPosition( line, col )
+		    
 		  End Select
 		End Function
 	#tag EndEvent
 
 	#tag Event
-		Sub MouseDrag(x As Integer, y As Integer)
+		Sub MouseDrag(x as Integer, y as Integer)
 		  
 		End Sub
 	#tag EndEvent
@@ -430,21 +532,32 @@ Inherits TextInputCanvas
 	#tag EndEvent
 
 	#tag Event
-		Sub MouseUp(x As Integer, y As Integer)
+		Sub MouseUp(x as Integer, y as Integer)
 		  
 		End Sub
 	#tag EndEvent
 
 	#tag Event
-		Sub Paint(g As Graphics, areas() As Xojo.Rect)
+		Sub Paint(g as Graphics, areas() as object)
+		  #Pragma unused g
+		  #Pragma unused areas
+		  
+		  #If DebugBuild = False
+		    #Pragma BackgroundTasks False
+		    #Pragma BoundsChecking False
+		    #Pragma BreakOnExceptions False
+		    #Pragma NilObjectChecking False
+		    #Pragma StackOverflowChecking False
+		  #EndIf
+		  
 		  g.forecolor = &cFF000000
 		  g.FillRect 0, 0, g.Height, g.width
 		  
-		  // our text buffer MAY have ultiple lines in it so lets 
+		  // our text buffer MAY have multiple lines in it so lets 
 		  // do the blindingly lazy and ReplaceLineEndings 
-		  // and split on line endsins and just draw
+		  // and split on line endings and just draw each line
 		  
-		  Dim lines() As String = Split( ReplaceLineEndings(mTextBuffer, EndOfLine), EndOfLine )
+		  mlines = Split( ReplaceLineEndings(mTextBuffer, EndOfLine), EndOfLine )
 		  
 		  g.ClearRect 0, 0, g.Height, g.width
 		  
@@ -465,15 +578,68 @@ Inherits TextInputCanvas
 		  Dim drawAtY As Double
 		  
 		  drawAtY = g.TextAscent
-		  For i As Integer = 0 To lines.ubound
+		  Dim drawnCount As Integer
+		  
+		  Dim startSelection As Integer = -1
+		  Dim endSelection As Integer = -1
+		  
+		  If mSelStartPosition >= 0 Then
+		    startSelection = Min(mSelStartPosition, mInsertionPosition)
+		    endSelection = Max(mSelStartPosition, mInsertionPosition)
+		  End If
+		  
+		  For i As Integer = 0 To mlines.ubound
 		    drawAtX = 0
 		    
-		    g.DrawString lines(i), drawAtX, drawAtY
+		    Dim lineContainsSelection As Integer
+		    lineContainsSelection = 0
+		    If drawnCount <= startSelection And startselection <= drawnCount + Len(mlines(i)) + Len(EndOfLine) Then
+		      // line contains the start of the selection
+		      lineContainsSelection = 1
+		    ElseIf drawnCount <= endSelection And endSelection <= drawnCount + Len(mlines(i)) + Len(EndOfLine) Then
+		      // line contains the end of the selection
+		      lineContainsSelection = 2
+		    ElseIf startSelection <= drawnCount And drawnCount + Len(mlines(i)) + Len(EndOfLine) <= endSelection Then
+		      // line is fully selected from start to finish
+		      lineContainsSelection = 3
+		    End If
 		    
-		    drawAtX = g.StringWidth(lines(i))
+		    If startSelection >= 0 And lineContainsSelection > 0 Then
+		      
+		      Dim beforetext As String
+		      Dim middletext As String
+		      Dim endText As String
+		      Dim selCount As Integer = endSelection - startSelection
+		      
+		      beforeText = Left( mlines(i), startSelection - drawnCount)
+		      middleText = Mid( mlines(i), startSelection - drawnCount + 1, selCount )
+		      endtext = Mid( mlines(i), startSelection - drawnCount + 1 + selcount )
+		      
+		      g.DrawString beforeText, drawAtX, drawAtY
+		      drawAtX = drawAtX + g.StringWidth(beforeText)
+		      
+		      // the highlight rect
+		      Dim tmpColor As Color = g.DrawingColor
+		      g.DrawingColor = SelectedTextBackgroundColor
+		      g.FillRectangle drawAtX, drawAty - g.TextAscent, g.StringWidth(middleText), g.TextHeight
+		      g.DrawingColor = tmpColor
+		      
+		      g.DrawString middleText, drawAtX, drawAtY
+		      drawAtX = drawAtX + g.StringWidth(middleText)
+		      
+		      g.DrawString endtext, drawAtX, drawAtY
+		      drawAtX = drawAtX + g.StringWidth(endtext)
+		      
+		    Else
+		      g.DrawString mlines(i), drawAtX, drawAtY
+		    End If
+		    
+		    drawnCount = drawnCount + Len(mlines(i)) + Len(EndOfLine)
+		    
+		    drawAtX = g.StringWidth(mlines(i))
 		    
 		    // if we're drawing the last line then we probably do not want to advance the Y position 
-		    If i < lines.Ubound Then
+		    If i < mlines.Ubound Then
 		      drawAtY = drawAtY + g.TextHeight
 		    End If
 		    
@@ -494,7 +660,7 @@ Inherits TextInputCanvas
 	#tag EndEvent
 
 	#tag Event
-		Function RectForRange(ByRef range As TextRange) As Xojo.Rect
+		Function RectForRange(byref range as TextRange) As REALbasic.Rect
 		  //  Triggers the user's RectForRange event. The implementor should return the
 		  //  rectangle occupied by the given range, relative to the control. If needed,
 		  //  the implementor can adjust the range to represent the text that was actually
@@ -542,7 +708,7 @@ Inherits TextInputCanvas
 	#tag EndEvent
 
 	#tag Event
-		Sub SetIncompleteText(text As String, replacementRange As TextRange, relativeSelection As TextRange)
+		Sub SetIncompleteText(text as string, replacementRange as TextRange, relativeSelection as TextRange)
 		  //  Triggers the user's SetIncompleteText event. This is fired when the system
 		  //  has started (or is continuing) international text input and wishes to display
 		  //  'incomplete text'. Incomplete text (marked text, in Cocoa terms) is a temporary
@@ -560,7 +726,7 @@ Inherits TextInputCanvas
 	#tag EndEvent
 
 	#tag Event
-		Function TextForRange(range As TextRange) As String
+		Function TextForRange(range as TextRange) As string
 		  //  Triggers the user's TextForRange event. The implementor should return the substring
 		  //  of its content at the given range.
 		  // 
@@ -572,7 +738,7 @@ Inherits TextInputCanvas
 	#tag EndEvent
 
 	#tag Event
-		Function TextLength() As Integer
+		Function TextLength() As integer
 		  //  Triggers the user's TextLength event. The implementor should return the length
 		  //  of its content (in characters).
 		  //
@@ -699,6 +865,8 @@ Inherits TextInputCanvas
 		  
 		  dbglog CurrentMethodName + " insertion position = " + Str(mInsertionPosition)
 		  
+		  Me.invalidate
+		  
 		End Sub
 	#tag EndMethod
 
@@ -710,13 +878,13 @@ Inherits TextInputCanvas
 		  
 		  // if line , col exceeds the n entire text buffer then the position should be the end of the buffer
 		  
-		  Dim lines() As String = Split( ReplaceLineEndings(mTextBuffer, EndOfLine), EndOfLine )
+		  mlines = Split( ReplaceLineEndings(mTextBuffer, EndOfLine), EndOfLine )
 		  
 		  Dim tmpPosition As Integer
 		  
 		  // count up the lengths of whole lines
-		  For i As Integer = 0 To min(line - 1, lines.Ubound)
-		    tmpPosition = tmpPosition + lines(i).Len
+		  For i As Integer = 0 To Min(line - 1, mlines.Ubound)
+		    tmpPosition = tmpPosition + mlines(i).Len + Len(EndOfLine)
 		  Next
 		  
 		  // plus hte last line we add in just the columns since it may not be the wbole line
@@ -771,34 +939,52 @@ Inherits TextInputCanvas
 		Protected Sub MoveToEndOfLine()
 		  Dim line, column As Integer
 		  PositionToLineAndColumn(mInsertionPosition, line, column)
-		  line = line + 1
-		  column = 0 - Len(EndOfLine)
+		  
+		  column = len( mLines(line) )
+		  
 		  mInsertionPosition = LineColumnToPosition(line, column)
+		  
 		  dbglog " insertion pos = " + Str(mInsertionPosition)
 		End Sub
 	#tag EndMethod
 
 	#tag Method, Flags = &h1
 		Protected Sub PositionToLineAndColumn(position as integer, byref line as integer, byref column as integer)
-		  Dim currPos As Integer=1
+		  Dim currPos As Integer = 1
 		  line = 0
 		  column = 0
 		  
-		  While currPos < position+1
+		  While currPos < position + 1
 		    
-		    If mTextBuffer.Mid(currPos,1) = EndOfLine Then
+		    If mTextBuffer.Mid(currPos,Len(EndOfLine)) = EndOfLine Then
 		      line = line + 1
 		      column = 0
+		      currPos = currPos + Len(EndOfLine)
 		    Else
 		      column = column + 1
+		      currPos = currPos + 1
 		    End If
-		    
-		    currPos = currPos + 1
 		    
 		  Wend
 		  
 		  'dbglog CurrentMethodName + " [line,col] = [" + Str(line) + ", " + Str(column) + "]"
 		  
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h21
+		Private Sub ResetSelStart()
+		  mSelStartPosition = -1
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h21
+		Private Sub SetSelStart()
+		  // if selStart is already >= 0 then we wont overwrite it
+		  If mSelStartPosition < 0 Then
+		    mSelStartPosition = mInsertionPosition
+		  End If
 		  
 		End Sub
 	#tag EndMethod
@@ -904,6 +1090,14 @@ Inherits TextInputCanvas
 		Protected mLastClickY As double
 	#tag EndProperty
 
+	#tag Property, Flags = &h21
+		Private mLines() As string
+	#tag EndProperty
+
+	#tag Property, Flags = &h21
+		Private mSelStartPosition As Integer = -1
+	#tag EndProperty
+
 	#tag Property, Flags = &h1
 		Protected mShiftClick As boolean
 	#tag EndProperty
@@ -926,6 +1120,26 @@ Inherits TextInputCanvas
 			End Set
 		#tag EndSetter
 		ReadOnly As boolean
+	#tag EndComputedProperty
+
+	#tag Property, Flags = &h0
+		SelectedTextBackgroundColor As Color
+	#tag EndProperty
+
+	#tag ComputedProperty, Flags = &h0
+		#tag Getter
+			Get
+			  return ReplaceLineEndings( mTextBuffer, EndOfLine )
+			End Get
+		#tag EndGetter
+		#tag Setter
+			Set
+			  mTextBuffer = ReplaceLineEndings( value, EndOfLine )
+			  
+			  me.invalidate
+			End Set
+		#tag EndSetter
+		Text As String
 	#tag EndComputedProperty
 
 	#tag Property, Flags = &h0
@@ -962,14 +1176,6 @@ Inherits TextInputCanvas
 
 
 	#tag ViewBehavior
-		#tag ViewProperty
-			Name="AllowFocusRing"
-			Visible=true
-			Group="Appearance"
-			InitialValue=""
-			Type="Boolean"
-			EditorType="Boolean"
-		#tag EndViewProperty
 		#tag ViewProperty
 			Name="Tooltip"
 			Visible=true
@@ -1184,6 +1390,22 @@ Inherits TextInputCanvas
 			Group="Behavior"
 			InitialValue=""
 			Type="boolean"
+			EditorType=""
+		#tag EndViewProperty
+		#tag ViewProperty
+			Name="Text"
+			Visible=false
+			Group="Behavior"
+			InitialValue=""
+			Type="String"
+			EditorType="MultiLineEditor"
+		#tag EndViewProperty
+		#tag ViewProperty
+			Name="SelectedTextBackgroundColor"
+			Visible=false
+			Group="Behavior"
+			InitialValue="&c000000"
+			Type="Color"
 			EditorType=""
 		#tag EndViewProperty
 	#tag EndViewBehavior
