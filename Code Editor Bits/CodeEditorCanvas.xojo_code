@@ -472,52 +472,7 @@ Inherits TextInputCanvas
 
 	#tag Event
 		Function MouseDown(x as Integer, y as Integer) As Boolean
-		  // dbglog currentmethodname
-		  
-		  ResetSelStart
-		  
-		  // double and triple clicks are both TIME & SPACE
-		  // if you click move a long way click this should not be a double or triple click
-		  
-		  // triple click ?
-		  If (mClickType = ClickTypes.Double) _
-		    And (Ticks - mLastClickTime < DoubleClickInterval) _
-		    And ( Abs(x - mLastClickX) < 5) _
-		    And ( Abs(y - mLastClickY) < 5)  Then
-		    
-		    mClickType  = ClickTypes.triple
-		    dbglog currentmethodname + " triple click"
-		    // double click ?
-		  ElseIf (mClickType = ClickTypes.Single) _
-		    And (Ticks - mLastClickTime < DoubleClickInterval) _
-		    And ( Abs(x - mLastClickX) < 5) _
-		    And ( Abs(y - mLastClickY) < 5)  Then
-		    
-		    mClickType = ClickTypes.Double
-		    dbglog currentmethodname + " double click"
-		  Else
-		    mClickType = ClickTypes.Single
-		    dbglog currentmethodname + " single click"
-		  End If
-		  
-		  mLastClickX = x
-		  mLastClickY = y
-		  
-		  mLastClickTime = Ticks
-		  
-		  Dim p As Picture = GetMeasuringPicture
-		  
-		  Dim line, col As Integer
-		  
-		  XYToLineColumn(p.Graphics, x, y, line, col)
-		  
-		  Select Case mClickType
-		    
-		  Case ClickTypes.Single
-		    
-		    mInsertionPosition = LineColumnToPosition( line, col )
-		    
-		  End Select
+		  DoMouseDown(X, Y)
 		  
 		  Return True
 		End Function
@@ -525,20 +480,7 @@ Inherits TextInputCanvas
 
 	#tag Event
 		Sub MouseDrag(x as Integer, y as Integer)
-		  dbglog currentmethodname, " x:", x, " y:", y
-		  
-		  Dim p As Picture = GetMeasuringPicture
-		  
-		  Dim line, col As Integer
-		  
-		  XYToLineColumn(p.Graphics, x, y, line, col)
-		  
-		  // if the selection wasnt started it will be now !
-		  SetSelStart
-		  
-		  mInsertionPosition = LineColumnToPosition(line, col)
-		  
-		  Me.invalidate
+		  DoMouseDrag(X, y)
 		End Sub
 	#tag EndEvent
 
@@ -558,6 +500,211 @@ Inherits TextInputCanvas
 
 	#tag Event
 		Sub Paint(g as Graphics, areas() as object)
+		  #Pragma unused g
+		  #Pragma unused areas
+		  
+		  DoDraw(G, areas)
+		  
+		End Sub
+	#tag EndEvent
+
+	#tag Event
+		Function RectForRange(byref range as TextRange) As REALbasic.Rect
+		  //  Triggers the user's RectForRange event. The implementor should return the
+		  //  rectangle occupied by the given range, relative to the control. If needed,
+		  //  the implementor can adjust the range to represent the text that was actually
+		  //  represented in the range (to account for word wrapping or other client-side
+		  //  features).
+		  
+		  // 
+		  // Gets: range - the requested text range
+		  // Returns: the rect the text takes in the control
+		  
+		  return GetRectForRange(range)
+		End Function
+	#tag EndEvent
+
+	#tag Event
+		Function SelectedRange() As TextRange
+		  //  Triggers the user's SelectedRange event. The implementor should return a valid
+		  //  range specifying which portion of the content is selected.
+		  // 
+		  // Gets: nothing
+		  // Returns: the range of the selection
+		  
+		  return GetSelectedRange()
+		End Function
+	#tag EndEvent
+
+	#tag Event
+		Sub SetIncompleteText(text as string, replacementRange as TextRange, relativeSelection as TextRange)
+		  //  Triggers the user's SetIncompleteText event. This is fired when the system
+		  //  has started (or is continuing) international text input and wishes to display
+		  //  'incomplete text'. Incomplete text (marked text, in Cocoa terms) is a temporary
+		  //  string displayed in the text during composition of the final input and is
+		  //  not actually part of the content until it has been committed (via InsertText).
+		  //  
+		  // Gets: text - the marked text (replaces any previous marked text)
+		  //       replacementRange - the range of text to replace
+		  //       relativeSelection - the new selection, relative to the start of the marked
+		  //                           text
+		  // Returns: nothing
+		  
+		  dbglog currentmethodname
+		End Sub
+	#tag EndEvent
+
+	#tag Event
+		Function TextForRange(range as TextRange) As string
+		  //  Triggers the user's TextForRange event. The implementor should return the substring
+		  //  of its content at the given range.
+		  // 
+		  // Gets: range - the range of text to return
+		  // Returns: the substring of the content
+		  
+		  return GetTextForRange(range)
+		  
+		End Function
+	#tag EndEvent
+
+	#tag Event
+		Function TextLength() As integer
+		  //  Triggers the user's TextLength event. The implementor should return the length
+		  //  of its content (in characters).
+		  //
+		  // Gets: nothing
+		  // Returns: the content length
+		  
+		  return GetTextLength()
+		End Function
+	#tag EndEvent
+
+
+	#tag MenuHandler
+		Function EditClear() As Boolean Handles EditClear.Action
+		  // the Edit > Delete menu item
+		  dbglog currentmethodname
+		  
+		  InsertText("")
+		  
+		  Return True
+		  
+		End Function
+	#tag EndMenuHandler
+
+	#tag MenuHandler
+		Function EditCopy() As Boolean Handles EditCopy.Action
+		  dbglog currentmethodname
+		  
+		  Dim c As New Clipboard
+		  
+		  c.Text = SelectedText()
+		  
+		  Return True
+		  
+		End Function
+	#tag EndMenuHandler
+
+	#tag MenuHandler
+		Function EditCut() As Boolean Handles EditCut.Action
+		  dbglog currentmethodname
+		  
+		  Dim c As New Clipboard
+		  
+		  c.Text = SelectedText()
+		  
+		  InsertText("")
+		  
+		  Return True
+		  
+		End Function
+	#tag EndMenuHandler
+
+	#tag MenuHandler
+		Function EditPaste() As Boolean Handles EditPaste.Action
+		  dbglog currentmethodname
+		  
+		  dbglog currentmethodname
+		  
+		  Dim c As New Clipboard
+		  
+		  InsertText( c.Text )
+		  
+		  Return True
+		  
+		End Function
+	#tag EndMenuHandler
+
+	#tag MenuHandler
+		Function EditSelectAll() As Boolean Handles EditSelectAll.Action
+		  dbglog currentmethodname
+		  
+		  mSelStartPosition = 0
+		  mInsertionPosition = mTextBuffer.Length
+		  
+		  Me.Invalidate
+		  
+		  Return True
+		  
+		End Function
+	#tag EndMenuHandler
+
+	#tag MenuHandler
+		Function EditUndoX() As Boolean Handles EditUndoX.Action
+		  dbglog currentmethodname
+		  
+		  Return True
+		  
+		End Function
+	#tag EndMenuHandler
+
+
+	#tag Method, Flags = &h21
+		Private Sub blinkTimerAction(instance as Timer)
+		  mCursorVisible = Not mCursorVisible
+		  
+		  Self.invalidate
+		  
+		  // dbglog CurrentMethodName + " cursor visible = " + Str(mCursorVisible)
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Sub Constructor()
+		  // Calling the overridden superclass constructor.
+		  Super.Constructor
+		  
+		  mBlinkTimer = New Timer
+		  mBlinkTimer.Mode = Timer.ModeOff
+		  mBlinkTimer.Period = 500
+		  AddHandler mBlinkTimer.Action, AddressOf blinkTimerAction
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h21
+		Private Sub DbgLog(paramarray msgbits as variant)
+		  #If DebugBuild Then
+		    
+		    If Self.debugMe Then
+		      
+		      Dim bits() As String
+		      For Each bit As Variant In msgbits
+		        bits.append bit.StringValue
+		      Next
+		      
+		      System.debuglog Join(bits,"")
+		      
+		    End If
+		    
+		  #EndIf
+		  
+		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h1
+		Protected Sub DoDraw(G as graphics, areas() as object)
 		  #Pragma unused g
 		  #Pragma unused areas
 		  
@@ -676,215 +823,75 @@ Inherits TextInputCanvas
 		  End If
 		  
 		End Sub
-	#tag EndEvent
+	#tag EndMethod
 
-	#tag Event
-		Function RectForRange(byref range as TextRange) As REALbasic.Rect
-		  //  Triggers the user's RectForRange event. The implementor should return the
-		  //  rectangle occupied by the given range, relative to the control. If needed,
-		  //  the implementor can adjust the range to represent the text that was actually
-		  //  represented in the range (to account for word wrapping or other client-side
-		  //  features).
+	#tag Method, Flags = &h1
+		Protected Sub DoMouseDown(X as integer, Y as integer)
+		  // dbglog currentmethodname
 		  
-		  // 
-		  // Gets: range - the requested text range
-		  // Returns: the rect the text takes in the control
+		  ResetSelStart
 		  
-		  dbglog currentmethodname + " requested range =[" + Str(range.Location) + ", " + Str(range.Length) + "]"
+		  // double and triple clicks are both TIME & SPACE
+		  // if you click move a long way click this should not be a double or triple click
 		  
-		  // get the position as a line & column #
-		  Dim line, column As Integer
-		  PositionToLineAndColumn( range.Location, line, column )
-		  
-		  Dim p As picture = GetMeasuringPicture
-		  
-		  // get the x (left) edge and (y) baseline for the position
-		  Dim position As REAlbasic.point = LineColumnToXY(p.Graphics, line, column)
-		  
-		  // now compute the rectangle
-		  Dim selectedText As String = Mid(mTextBuffer, range.Location, range.Length)
-		  Dim width As Double = p.Graphics.StringWidth( selectedText )
-		  Dim top As Double = position.Y - p.Graphics.TextAscent
-		  
-		  Dim windowBounds As Rect = Self.Window.Bounds
-		  
-		  Dim rangeRect As New REALbasic.Rect(position.x, top, width, p.Graphics.TextHeight)
-		  
-		  Return rangeRect
-		End Function
-	#tag EndEvent
-
-	#tag Event
-		Function SelectedRange() As TextRange
-		  //  Triggers the user's SelectedRange event. The implementor should return a valid
-		  //  range specifying which portion of the content is selected.
-		  // 
-		  // Gets: nothing
-		  // Returns: the range of the selection
-		  
-		  Dim startPos As Integer = mInsertionPosition
-		  Dim endPos As Integer = mInsertionPosition
-		  If mSelStartPosition >= 0 Then
-		    startPos = Min(mInsertionPosition, mSelStartPosition)
-		    endPos = Max(mInsertionPosition, mSelStartPosition)
+		  // triple click ?
+		  If (mClickType = ClickTypes.Double) _
+		    And (Ticks - mLastClickTime < DoubleClickInterval) _
+		    And ( Abs(x - mLastClickX) < 5) _
+		    And ( Abs(y - mLastClickY) < 5)  Then
+		    
+		    mClickType  = ClickTypes.triple
+		    dbglog currentmethodname + " triple click"
+		    // double click ?
+		  ElseIf (mClickType = ClickTypes.Single) _
+		    And (Ticks - mLastClickTime < DoubleClickInterval) _
+		    And ( Abs(x - mLastClickX) < 5) _
+		    And ( Abs(y - mLastClickY) < 5)  Then
+		    
+		    mClickType = ClickTypes.Double
+		    dbglog currentmethodname + " double click"
+		  Else
+		    mClickType = ClickTypes.Single
+		    dbglog currentmethodname + " single click"
 		  End If
 		  
-		  Dim retVal As New TextRange( startPos, endPos - startPos )
+		  mLastClickX = x
+		  mLastClickY = y
 		  
-		  dbglog currentmethodname , " location :" , retval.Location, " length :" , retval.Length.ToString
+		  mLastClickTime = Ticks
 		  
-		  Return retval
-		End Function
-	#tag EndEvent
-
-	#tag Event
-		Sub SetIncompleteText(text as string, replacementRange as TextRange, relativeSelection as TextRange)
-		  //  Triggers the user's SetIncompleteText event. This is fired when the system
-		  //  has started (or is continuing) international text input and wishes to display
-		  //  'incomplete text'. Incomplete text (marked text, in Cocoa terms) is a temporary
-		  //  string displayed in the text during composition of the final input and is
-		  //  not actually part of the content until it has been committed (via InsertText).
-		  //  
-		  // Gets: text - the marked text (replaces any previous marked text)
-		  //       replacementRange - the range of text to replace
-		  //       relativeSelection - the new selection, relative to the start of the marked
-		  //                           text
-		  // Returns: nothing
+		  Dim p As Picture = GetMeasuringPicture
 		  
-		  dbglog currentmethodname
-		End Sub
-	#tag EndEvent
-
-	#tag Event
-		Function TextForRange(range as TextRange) As string
-		  //  Triggers the user's TextForRange event. The implementor should return the substring
-		  //  of its content at the given range.
-		  // 
-		  // Gets: range - the range of text to return
-		  // Returns: the substring of the content
+		  Dim line, col As Integer
 		  
-		  Dim retVal As String = mTextBuffer.Mid(range.Location+1, range.Length)
+		  XYToLineColumn(p.Graphics, x, y, line, col)
 		  
-		  dbglog currentmethodname , " [" , retVal , "]"
-		  
-		  return retVal
-		  
-		End Function
-	#tag EndEvent
-
-	#tag Event
-		Function TextLength() As integer
-		  //  Triggers the user's TextLength event. The implementor should return the length
-		  //  of its content (in characters).
-		  //
-		  // Gets: nothing
-		  // Returns: the content length
-		  
-		  Dim retVal As Integer = mTextBuffer.Len
-		  
-		  dbglog currentmethodname, " ", retVal
-		  
-		  Return retVal
-		End Function
-	#tag EndEvent
-
-
-	#tag MenuHandler
-		Function EditClear() As Boolean Handles EditClear.Action
-		  dbglog currentmethodname
-		  
-		  Return True
-		  
-		End Function
-	#tag EndMenuHandler
-
-	#tag MenuHandler
-		Function EditCopy() As Boolean Handles EditCopy.Action
-		  dbglog currentmethodname
-		  
-		  Return True
-		  
-		End Function
-	#tag EndMenuHandler
-
-	#tag MenuHandler
-		Function EditCut() As Boolean Handles EditCut.Action
-		  dbglog currentmethodname
-		  
-		  Return True
-		  
-		End Function
-	#tag EndMenuHandler
-
-	#tag MenuHandler
-		Function EditPaste() As Boolean Handles EditPaste.Action
-		  dbglog currentmethodname
-		  
-		  Return True
-		  
-		End Function
-	#tag EndMenuHandler
-
-	#tag MenuHandler
-		Function EditSelectAll() As Boolean Handles EditSelectAll.Action
-		  dbglog currentmethodname
-		  
-		  Return True
-		  
-		End Function
-	#tag EndMenuHandler
-
-	#tag MenuHandler
-		Function EditUndo() As Boolean Handles EditUndo.Action
-		  dbglog currentmethodname
-		  
-		  Return True
-		  
-		End Function
-	#tag EndMenuHandler
-
-
-	#tag Method, Flags = &h21
-		Private Sub blinkTimerAction(instance as Timer)
-		  mCursorVisible = Not mCursorVisible
-		  
-		  Self.invalidate
-		  
-		  // dbglog CurrentMethodName + " cursor visible = " + Str(mCursorVisible)
-		  
+		  Select Case mClickType
+		    
+		  Case ClickTypes.Single
+		    
+		    mInsertionPosition = LineColumnToPosition( line, col )
+		    
+		  End Select
 		End Sub
 	#tag EndMethod
 
-	#tag Method, Flags = &h0
-		Sub Constructor()
-		  // Calling the overridden superclass constructor.
-		  Super.Constructor
+	#tag Method, Flags = &h1
+		Protected Sub DoMouseDrag(X as integer, y as integer)
+		  dbglog currentmethodname, " x:", x, " y:", y
 		  
-		  mBlinkTimer = New Timer
-		  mBlinkTimer.Mode = Timer.ModeOff
-		  mBlinkTimer.Period = 500
-		  AddHandler mBlinkTimer.Action, AddressOf blinkTimerAction
+		  Dim p As Picture = GetMeasuringPicture
 		  
-		End Sub
-	#tag EndMethod
-
-	#tag Method, Flags = &h21
-		Private Sub DbgLog(paramarray msgbits as variant)
-		  #If DebugBuild Then
-		    
-		    If Self.debugMe Then
-		      
-		      Dim bits() As String
-		      For Each bit As Variant In msgbits
-		        bits.append bit.StringValue
-		      Next
-		      
-		      System.debuglog Join(bits,"")
-		      
-		    End If
-		    
-		  #EndIf
+		  Dim line, col As Integer
 		  
+		  XYToLineColumn(p.Graphics, x, y, line, col)
+		  
+		  // if the selection wasnt started it will be now !
+		  SetSelStart
+		  
+		  mInsertionPosition = LineColumnToPosition(line, col)
+		  
+		  Me.invalidate
 		End Sub
 	#tag EndMethod
 
@@ -943,6 +950,74 @@ Inherits TextInputCanvas
 		  p.Graphics.Italic = Self.Italic
 		  
 		  return p
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h1
+		Protected Function GetRectForRange(range as TextRange) As REALbasic.Rect
+		  
+		  dbglog currentmethodname + " requested range =[" + Str(range.Location) + ", " + Str(range.Length) + "]"
+		  
+		  // get the position as a line & column #
+		  Dim line, column As Integer
+		  PositionToLineAndColumn( range.Location, line, column )
+		  
+		  Dim p As picture = GetMeasuringPicture
+		  
+		  // get the x (left) edge and (y) baseline for the position
+		  Dim position As REAlbasic.point = LineColumnToXY(p.Graphics, line, column)
+		  
+		  // now compute the rectangle
+		  Dim selectedText As String = Mid(mTextBuffer, range.Location, range.Length)
+		  Dim width As Double = p.Graphics.StringWidth( selectedText )
+		  Dim top As Double = position.Y - p.Graphics.TextAscent
+		  
+		  Dim windowBounds As Rect = Self.Window.Bounds
+		  
+		  Dim rangeRect As New REALbasic.Rect(position.x, top, width, p.Graphics.TextHeight)
+		  
+		  Return rangeRect
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h1
+		Protected Function GetSelectedRange() As TextRange
+		  
+		  Dim startPos As Integer = mInsertionPosition
+		  Dim endPos As Integer = mInsertionPosition
+		  If mSelStartPosition >= 0 Then
+		    startPos = Min(mInsertionPosition, mSelStartPosition)
+		    endPos = Max(mInsertionPosition, mSelStartPosition)
+		  End If
+		  
+		  Dim retVal As New TextRange( startPos, endPos - startPos )
+		  
+		  dbglog currentmethodname , " location :" , retval.Location, " length :" , retval.Length.ToString
+		  
+		  Return retval
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h1
+		Protected Function GetTextForRange(range as TextRange) As string
+		  
+		  Dim retVal As String = mTextBuffer.Mid(range.Location+1, range.Length)
+		  
+		  dbglog currentmethodname , " [" , retVal , "]"
+		  
+		  return retVal
+		  
+		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h1
+		Protected Function GetTextLength() As Integer
+		  
+		  Dim retVal As Integer = mTextBuffer.Len
+		  
+		  dbglog currentmethodname, " ", retVal
+		  
+		  Return retVal
 		End Function
 	#tag EndMethod
 
@@ -1092,6 +1167,17 @@ Inherits TextInputCanvas
 		End Sub
 	#tag EndMethod
 
+	#tag Method, Flags = &h1
+		Protected Function SelectedText() As string
+		  
+		  
+		  Dim selectedRange As TextRange = GetSelectedRange
+		  
+		  Return GetTextForRange(selectedRange)
+		  
+		End Function
+	#tag EndMethod
+
 	#tag Method, Flags = &h21
 		Private Sub SetSelStart()
 		  DbgLog CurrentMethodName
@@ -1211,6 +1297,10 @@ Inherits TextInputCanvas
 	#tag EndProperty
 
 	#tag Property, Flags = &h21
+		Private mmTextBuffer As string
+	#tag EndProperty
+
+	#tag Property, Flags = &h21
 		Private mSelStartPosition As Integer = -1
 	#tag EndProperty
 
@@ -1218,9 +1308,21 @@ Inherits TextInputCanvas
 		Protected mShiftClick As boolean
 	#tag EndProperty
 
-	#tag Property, Flags = &h1
+	#tag ComputedProperty, Flags = &h1
+		#tag Getter
+			Get
+			  Return mmTextBuffer
+			End Get
+		#tag EndGetter
+		#tag Setter
+			Set
+			  mmTextBuffer = value
+			  
+			  me.invalidate
+			End Set
+		#tag EndSetter
 		Protected mTextBuffer As string
-	#tag EndProperty
+	#tag EndComputedProperty
 
 	#tag ComputedProperty, Flags = &h0
 		#tag Getter
