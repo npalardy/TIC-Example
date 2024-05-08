@@ -42,9 +42,11 @@ Begin Window winCodeEditor
       LockTop         =   True
       ReadOnly        =   False
       Scope           =   0
+      SelectedTextBackgroundColor=   &c00000000
       TabIndex        =   0
       TabPanelIndex   =   0
       TabStop         =   True
+      Text            =   ""
       TextColor       =   &cFFFFFF00
       TextFont        =   "System"
       TextSize        =   0.0
@@ -67,9 +69,16 @@ End
 		  Me.TextFont = "Menlo"
 		  Me.TextSize = 14
 		  
-		  Me.Text = "123" + EndOfLine + "4567" + EndOfLine + "891011" + EndOfLine + "1213" + EndOfLine + "14" 
+		  Dim lines() As String
 		  
-		  me.SelectedTextBackgroundColor = &c007700
+		  For i As Integer = 1 To 100
+		    lines.append i.ToString
+		  Next
+		  
+		  Me.Text = Join(lines, EndOfLine)
+		  
+		  Me.SelectedTextBackgroundColor = &c007700
+		  
 		End Sub
 	#tag EndEvent
 #tag EndEvents
