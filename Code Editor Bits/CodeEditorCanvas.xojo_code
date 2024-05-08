@@ -3,14 +3,7 @@ Protected Class CodeEditorCanvas
 Inherits TextInputCanvas
 	#tag Event
 		Function BaselineAtIndex(index as integer) As integer
-		  //  Triggers the user's DiscardIncompleteText event. This is called when the
-		  //  system wishes to discard the incomplete text.
-		  // 
-		  // Gets: nothing
-		  // 
-		  // Returns: nothing
 		  
-		  // EditLog CurrentMethodName
 		  
 		  dbglog currentmethodname
 		End Function
@@ -384,6 +377,8 @@ Inherits TextInputCanvas
 
 	#tag Event
 		Sub GotFocus()
+		  dbglog currentmethodname
+		  
 		  mBlinkTimer.Mode = Timer.ModeMultiple
 		End Sub
 	#tag EndEvent
@@ -396,12 +391,12 @@ Inherits TextInputCanvas
 		  // Gets: nothing
 		  // Returns: the range of incomplete text (as a TextRange)
 		  
-		  // this gets called frequently when test is being input
+		  // this gets called frequently when text is being input
 		  // this is the "marked text" in cocoa terms
 		  // see https://developer.apple.com/documentation/appkit/nstextinputclient?language=objc
 		  
 		  // we can return NIL if there is no "marked range"
-		  // uually this is when you deal with international input
+		  // usually this is when you deal with international input
 		  
 		  dbglog currentmethodname
 		  
@@ -421,7 +416,9 @@ Inherits TextInputCanvas
 		  //       range - the content range to replace (may be NULL)
 		  // Returns: nothing
 		  
-		  InsertText(text)
+		  // dbglog currentmethodname 
+		  
+		  InsertText(Text, range)
 		  
 		  Me.Invalidate
 		End Sub
@@ -438,7 +435,7 @@ Inherits TextInputCanvas
 		  // can return TRUE and the canvas will then be "editable"
 		  // return false and its not
 		  
-		  // DbgLog CurrentMethodName + " = " + Str(Not ReadOnly)
+		  // DbgLog CurrentMethodName + " = " + If(ReadOnly, "read only", "editable" )
 		  
 		  Return mEditable
 		  
@@ -463,12 +460,18 @@ Inherits TextInputCanvas
 
 	#tag Event
 		Sub LostFocus()
+		  dbglog currentmethodname
+		  
 		  mBlinkTimer.Mode = Timer.ModeOff
 		End Sub
 	#tag EndEvent
 
 	#tag Event
 		Function MouseDown(x as Integer, y as Integer) As Boolean
+		  // dbglog currentmethodname
+		  
+		  ResetSelStart
+		  
 		  // double and triple clicks are both TIME & SPACE
 		  // if you click move a long way click this should not be a double or triple click
 		  
@@ -507,33 +510,45 @@ Inherits TextInputCanvas
 		  Select Case mClickType
 		    
 		  Case ClickTypes.Single
-		    If Keyboard.ShiftKey Then
-		      SetSelStart
-		    Else
-		      ResetSelStart
-		    End If
 		    
 		    mInsertionPosition = LineColumnToPosition( line, col )
 		    
 		  End Select
+		  
+		  Return True
 		End Function
 	#tag EndEvent
 
 	#tag Event
 		Sub MouseDrag(x as Integer, y as Integer)
+		  dbglog currentmethodname, " x:", x, " y:", y
 		  
+		  Dim p As Picture = GetMeasuringPicture
+		  
+		  Dim line, col As Integer
+		  
+		  XYToLineColumn(p.Graphics, x, y, line, col)
+		  
+		  // if the selection wasnt started it will be now !
+		  SetSelStart
+		  
+		  mInsertionPosition = LineColumnToPosition(line, col)
+		  
+		  Me.invalidate
 		End Sub
 	#tag EndEvent
 
 	#tag Event
 		Sub MouseMove(X As Integer, Y As Integer)
+		  // dbglog currentmethodname
 		  
 		End Sub
 	#tag EndEvent
 
 	#tag Event
 		Sub MouseUp(x as Integer, y as Integer)
-		  
+		  // dbglog currentmethodname
+		  // 
 		End Sub
 	#tag EndEvent
 
@@ -666,6 +681,7 @@ Inherits TextInputCanvas
 		  //  the implementor can adjust the range to represent the text that was actually
 		  //  represented in the range (to account for word wrapping or other client-side
 		  //  features).
+		  
 		  // 
 		  // Gets: range - the requested text range
 		  // Returns: the rect the text takes in the control
@@ -681,9 +697,12 @@ Inherits TextInputCanvas
 		  // get the x (left) edge and (y) baseline for the position
 		  Dim position As REAlbasic.point = LineColumnToXY(p.Graphics, line, column)
 		  
-		  // now computer the rectangle
-		  Dim width As Double = p.Graphics.StringWidth( Mid(mTextBuffer, range.Location, range.Length) )
+		  // now compute the rectangle
+		  Dim selectedText As String = Mid(mTextBuffer, range.Location, range.Length)
+		  Dim width As Double = p.Graphics.StringWidth( selectedText )
 		  Dim top As Double = position.Y - p.Graphics.TextAscent
+		  
+		  Dim windowBounds As Rect = Self.Window.Bounds
 		  
 		  Dim rangeRect As New REALbasic.Rect(position.x, top, width, p.Graphics.TextHeight)
 		  
@@ -699,11 +718,18 @@ Inherits TextInputCanvas
 		  // Gets: nothing
 		  // Returns: the range of the selection
 		  
-		  dbglog currentmethodname
+		  Dim startPos As Integer = mInsertionPosition
+		  Dim endPos As Integer = mInsertionPosition
+		  If mSelStartPosition >= 0 Then
+		    startPos = Min(mInsertionPosition, mSelStartPosition)
+		    endPos = Max(mInsertionPosition, mSelStartPosition)
+		  End If
 		  
-		  Return Nil
-		  // Return New TextRange(mInsertionPosition, 0)
+		  Dim retVal As New TextRange( startPos, endPos - startPos )
 		  
+		  dbglog currentmethodname , " location :" , retval.Location, " length :" , retval.Length.ToString
+		  
+		  Return retval
 		End Function
 	#tag EndEvent
 
@@ -733,7 +759,12 @@ Inherits TextInputCanvas
 		  // Gets: range - the range of text to return
 		  // Returns: the substring of the content
 		  
-		  dbglog currentmethodname
+		  Dim retVal As String = mTextBuffer.Mid(range.Location, range.Length)
+		  
+		  dbglog currentmethodname , " [" , retVal , "]"
+		  
+		  return retVal
+		  
 		End Function
 	#tag EndEvent
 
@@ -775,14 +806,22 @@ Inherits TextInputCanvas
 	#tag EndMethod
 
 	#tag Method, Flags = &h21
-		Private Sub DbgLog(msg as string)
-		  If DebugBuild = False Then
-		    Return
-		  End If
+		Private Sub DbgLog(paramarray msgbits as variant)
+		  #If DebugBuild Then
+		    
+		    If Self.debugMe Then
+		      
+		      Dim bits() As String
+		      For Each bit As Variant In msgbits
+		        bits.append bit.StringValue
+		      Next
+		      
+		      System.debuglog Join(bits,"")
+		      
+		    End If
+		    
+		  #EndIf
 		  
-		  If Self.debugMe Then
-		    System.debuglog msg
-		  End If
 		End Sub
 	#tag EndMethod
 
@@ -848,20 +887,31 @@ Inherits TextInputCanvas
 		Protected Sub InsertText(theText as string, range as textRange = nil)
 		  theText = ReplaceLineEndings(theText, EndOfLine)
 		  
+		  Dim selectedLength As Integer = 0
+		  Dim startPos As Integer = mInsertionPosition
+		  Dim endPos As Integer = mInsertionPosition
+		  If mSelStartPosition >= 0 Then
+		    startPos = Min(mInsertionPosition, mSelStartPosition)
+		    endPos = Max(mInsertionPosition, mSelStartPosition)
+		    selectedLength = endPos - startPos
+		  End If
+		  
 		  If range Is Nil Then
 		    dbglog currentmethodname + "[" + If(theText=EndOfLine,"<EOL>",theText) + "] nil range"
 		  Else
 		    dbglog currentmethodname + "[" + If(theText=EndOfLine,"<EOL>",theText) + "] range (location, length, end) = [" + Str(range.Location) + " ," + Str(range.Length) + ", " + Str(range.EndLocation) + "]"
 		  End If
 		  
-		  Dim leftText As String = Left(mTextBuffer, mInsertionPosition)
-		  Dim rightText As String = Mid(mTextBuffer, mInsertionPosition + 1)
+		  Dim leftText As String = Left(mTextBuffer, startPos)
+		  Dim rightText As String = Mid(mTextBuffer, endpos + 1 )
 		  
 		  dbglog CurrentMethodName + " [" + leftText + "] " + If(theText=EndOfLine,"<EOL>",theText) + "[" + rightText + "]"
 		  
 		  mTextBuffer = leftText + theText + rightText
 		  
-		  mInsertionPosition = mInsertionPosition + Len(theText)
+		  ResetSelStart
+		  
+		  mInsertionPosition = startPos + Len(theText)
 		  
 		  dbglog CurrentMethodName + " insertion position = " + Str(mInsertionPosition)
 		  
@@ -981,10 +1031,13 @@ Inherits TextInputCanvas
 
 	#tag Method, Flags = &h21
 		Private Sub SetSelStart()
+		  DbgLog CurrentMethodName
+		  
 		  // if selStart is already >= 0 then we wont overwrite it
 		  If mSelStartPosition < 0 Then
 		    mSelStartPosition = mInsertionPosition
 		  End If
+		  
 		  
 		End Sub
 	#tag EndMethod
