@@ -352,9 +352,11 @@ Inherits TextInputCanvas
 		  // Gets: location - the zero-based character index
 		  // Returns: the font name
 		  
-		  dbglog currentmethodname
+		  Dim retVal As String = Self.TextFont
 		  
-		  return self.TextFont
+		  dbglog currentmethodname, " ", retVal
+		  
+		  Return Self.TextFont
 		End Function
 	#tag EndEvent
 
@@ -368,9 +370,11 @@ Inherits TextInputCanvas
 		  // Gets: location - the zero-based character index
 		  // Returns: the font size
 		  
-		  dbglog currentmethodname
+		  Dim retVal As Double = Self.TextSize
 		  
-		  Return Self.TextSize
+		  dbglog currentmethodname, " ", retVal
+		  
+		  Return retVal
 		  
 		End Function
 	#tag EndEvent
@@ -759,7 +763,7 @@ Inherits TextInputCanvas
 		  // Gets: range - the range of text to return
 		  // Returns: the substring of the content
 		  
-		  Dim retVal As String = mTextBuffer.Mid(range.Location, range.Length)
+		  Dim retVal As String = mTextBuffer.Mid(range.Location+1, range.Length)
 		  
 		  dbglog currentmethodname , " [" , retVal , "]"
 		  
@@ -776,9 +780,68 @@ Inherits TextInputCanvas
 		  // Gets: nothing
 		  // Returns: the content length
 		  
-		  dbglog currentmethodname
+		  Dim retVal As Integer = mTextBuffer.Len
+		  
+		  dbglog currentmethodname, " ", retVal
+		  
+		  Return retVal
 		End Function
 	#tag EndEvent
+
+
+	#tag MenuHandler
+		Function EditClear() As Boolean Handles EditClear.Action
+		  dbglog currentmethodname
+		  
+		  Return True
+		  
+		End Function
+	#tag EndMenuHandler
+
+	#tag MenuHandler
+		Function EditCopy() As Boolean Handles EditCopy.Action
+		  dbglog currentmethodname
+		  
+		  Return True
+		  
+		End Function
+	#tag EndMenuHandler
+
+	#tag MenuHandler
+		Function EditCut() As Boolean Handles EditCut.Action
+		  dbglog currentmethodname
+		  
+		  Return True
+		  
+		End Function
+	#tag EndMenuHandler
+
+	#tag MenuHandler
+		Function EditPaste() As Boolean Handles EditPaste.Action
+		  dbglog currentmethodname
+		  
+		  Return True
+		  
+		End Function
+	#tag EndMenuHandler
+
+	#tag MenuHandler
+		Function EditSelectAll() As Boolean Handles EditSelectAll.Action
+		  dbglog currentmethodname
+		  
+		  Return True
+		  
+		End Function
+	#tag EndMenuHandler
+
+	#tag MenuHandler
+		Function EditUndo() As Boolean Handles EditUndo.Action
+		  dbglog currentmethodname
+		  
+		  Return True
+		  
+		End Function
+	#tag EndMenuHandler
 
 
 	#tag Method, Flags = &h21
