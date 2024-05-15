@@ -27,10 +27,12 @@ Begin Window winCodeEditor
    Width           =   600
    Begin CodeEditorCanvas CodeEditorCanvas1
       AutoDeactivate  =   True
+      Bold            =   False
       Enabled         =   True
       Height          =   360
       Index           =   -2147483648
       InitialParent   =   ""
+      Italic          =   False
       Left            =   0
       LockBottom      =   True
       LockedInPosition=   False
@@ -43,9 +45,14 @@ Begin Window winCodeEditor
       TabIndex        =   0
       TabPanelIndex   =   0
       TabStop         =   True
+      Text            =   ""
       TextColor       =   &c00000000
+      TextFont        =   ""
+      TextSize        =   0.0
+      TextUnit        =   0
       Tooltip         =   ""
       Top             =   40
+      Underline       =   False
       Visible         =   True
       Width           =   600
    End
@@ -62,6 +69,34 @@ End
 #tag EndWindow
 
 #tag WindowCode
+	#tag Method, Flags = &h0
+		Sub UpdateToolbar()
+		  
+		  For i As Integer = 0 To Toolbar11.Count
+		    
+		    Dim thisitem As toolitem = Toolbar11.item(i)
+		    
+		    If thisItem IsA ToolbarButton Then
+		      
+		      Select Case ToolbarButton(thisItem).Caption
+		        
+		      Case "Color"
+		        Dim p As New picture(20,20)
+		        p.Graphics.DrawingColor = CodeEditorCanvas1.TextColor
+		        p.Graphics.TextSize = 14
+		        p.Graphics.FillOval p.width/4, p.height/4, p.width/2, p.height/2
+		        
+		        ToolbarButton(thisItem).Icon = p
+		        
+		      End Select
+		      
+		    End If
+		    
+		  Next
+		End Sub
+	#tag EndMethod
+
+
 #tag EndWindowCode
 
 #tag Events CodeEditorCanvas1
@@ -95,13 +130,13 @@ End
 		  Select Case item.Caption
 		    
 		  Case "Bold"
-		    CodeEditorCanvas1.Bold = ToolbarButton(item).Pressed
+		    CodeEditorCanvas1.Bold = Not CodeEditorCanvas1.Bold
 		    
 		  Case "Italic"
-		    CodeEditorCanvas1.Italic = ToolbarButton(item).Pressed
+		    CodeEditorCanvas1.Italic = Not CodeEditorCanvas1.Italic
 		    
 		  Case "Underline"
-		    CodeEditorCanvas1.Underline = ToolbarButton(item).Pressed
+		    CodeEditorCanvas1.Underline = not CodeEditorCanvas1.Underline
 		    
 		  Case "Color"
 		    
@@ -110,6 +145,8 @@ End
 		    If SelectColor(c, "Pick the text color") Then
 		      CodeEditorCanvas1.TextColor = c
 		    End
+		    
+		    UpdateToolbar
 		    
 		  Else
 		    Break
@@ -141,21 +178,87 @@ End
 		    Dim thisitem As toolitem = Me.item(i)
 		    
 		    If thisItem IsA ToolbarButton Then
+		      
 		      Select Case ToolbarButton(thisItem).Caption
+		        
 		      Case "Font" 
 		        // Assign the new menu to the toolitem..
 		        ToolbarButton(thisItem).menu = myMenu
 		        
+		        Dim p As New picture(20,20)
+		        p.Graphics.Italic = True
+		        p.Graphics.DrawingColor = &cFFFFFF
+		        p.Graphics.TextSize = 14
+		        
+		        Dim textToDraw As String = "F"
+		        
+		        Dim padLeft, padTop As Integer
+		        padleft = (p.width - p.Graphics.StringWidth(textToDraw)) / 2
+		        padtop = (p.height - p.Graphics.TextHeight) / 2
+		        
+		        p.Graphics.DrawText textToDraw, padLeft, padtop + p.Graphics.TextAscent
+		        
+		        ToolbarButton(thisItem).Icon = p
+		        
 		      Case "Bold"
-		        ToolbarButton(thisItem).Pressed = CodeEditorCanvas1.Bold 
+		        
+		        Dim p As New picture(20,20)
+		        p.Graphics.Bold = True
+		        p.Graphics.DrawingColor = &cFFFFFF
+		        p.Graphics.TextSize = 14
+		        
+		        Dim textToDraw As String = "B"
+		        
+		        Dim padLeft, padTop As Integer
+		        padleft = (p.width - p.Graphics.StringWidth(textToDraw)) / 2
+		        padtop = (p.height - p.Graphics.TextHeight) / 2
+		        
+		        p.Graphics.DrawText textToDraw, padLeft, padtop + p.Graphics.TextAscent
+		        
+		        ToolbarButton(thisItem).Icon = p
 		        
 		      Case "Italic"
-		        ToolbarButton(thisItem).Pressed = CodeEditorCanvas1.Italic 
+		        
+		        Dim p As New picture(20,20)
+		        p.Graphics.Italic = True
+		        p.Graphics.DrawingColor = &cFFFFFF
+		        p.Graphics.TextSize = 14
+		        Dim textToDraw As String = "I"
+		        
+		        Dim padLeft, padTop As Integer
+		        padleft = (p.width - p.Graphics.StringWidth(textToDraw)) / 2
+		        padtop = (p.height - p.Graphics.TextHeight) / 2
+		        
+		        p.Graphics.DrawText textToDraw, padLeft, padtop + p.Graphics.TextAscent
+		        
+		        ToolbarButton(thisItem).Icon = p
 		        
 		      Case "Underline"
-		        ToolbarButton(thisItem).Pressed = CodeEditorCanvas1.Underline
 		        
-		      End select
+		        Dim p As New picture(20,20)
+		        p.Graphics.Underline = True
+		        p.Graphics.DrawingColor = &cFFFFFF
+		        p.Graphics.TextSize = 14
+		        
+		        Dim textToDraw As String = "U"
+		        
+		        Dim padLeft, padTop As Integer
+		        padleft = (p.width - p.Graphics.StringWidth(textToDraw)) / 2
+		        padtop = (p.height - p.Graphics.TextHeight) / 2
+		        
+		        p.Graphics.DrawText textToDraw, padLeft, padtop + p.Graphics.TextAscent
+		        
+		        ToolbarButton(thisItem).Icon = p
+		        
+		      Case "Color"
+		        Dim p As New picture(20,20)
+		        p.Graphics.DrawingColor = CodeEditorCanvas1.TextColor
+		        p.Graphics.TextSize = 14
+		        p.Graphics.FillOval p.width/4, p.height/4, p.width/2, p.height/2
+		        
+		        ToolbarButton(thisItem).Icon = p
+		        
+		      End Select
 		    End If
 		    
 		  Next

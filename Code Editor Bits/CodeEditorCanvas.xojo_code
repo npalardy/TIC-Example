@@ -54,7 +54,7 @@ Inherits TextInputCanvas
 		  // and "back" with "left" which assumes
 		  // left to right writing systems
 		  
-		  dbglog currentmethodname + " " + command
+		  dim handled as boolean 
 		  Dim requiresRedraw As Boolean = False
 		  
 		  Select Case command
@@ -70,6 +70,7 @@ Inherits TextInputCanvas
 		    mInsertionPosition = Min(mInsertionPosition + 1, Len(mTextBuffer))
 		    dbglog " insertion pos = " + Str(mInsertionPosition)
 		    requiresRedraw = True
+		    handled = True
 		    
 		  Case CmdMoveRight, CmdMoveRightAndModifySelection
 		    If Keyboard.ShiftKey Then
@@ -81,6 +82,7 @@ Inherits TextInputCanvas
 		    mInsertionPosition = Min(mInsertionPosition + 1, Len(mTextBuffer))
 		    dbglog " insertion pos = " + Str(mInsertionPosition)
 		    requiresRedraw = True
+		    handled = True
 		    
 		  Case CmdMoveBackward, CmdMoveBackwardAndModifySelection
 		    If Keyboard.ShiftKey Then
@@ -92,6 +94,7 @@ Inherits TextInputCanvas
 		    mInsertionPosition = Max(mInsertionPosition - 1, 0)
 		    dbglog " insertion pos = " + Str(mInsertionPosition)
 		    requiresRedraw = True
+		    handled = True
 		    
 		  Case CmdMoveLeft, CmdMoveLeftAndModifySelection
 		    If Keyboard.ShiftKey Then
@@ -103,6 +106,7 @@ Inherits TextInputCanvas
 		    mInsertionPosition = Max(mInsertionPosition - 1, 0)
 		    dbglog " insertion pos = " + Str(mInsertionPosition)
 		    requiresRedraw = True
+		    handled = True
 		    
 		  Case CmdMoveUp, CmdMoveUpAndModifySelection
 		    If Keyboard.ShiftKey Then
@@ -127,6 +131,7 @@ Inherits TextInputCanvas
 		    
 		    dbglog " insertion pos = " + Str(mInsertionPosition)
 		    requiresRedraw = True
+		    handled = True
 		    
 		    
 		  Case CmdMoveDown, CmdMoveDownAndModifySelection
@@ -151,9 +156,10 @@ Inherits TextInputCanvas
 		    dbglog " insertion pos = " + Str(mInsertionPosition)
 		    
 		    requiresRedraw = True
+		    handled = True
 		    
-		    // Case CmdMoveWordForward
-		    // Case CmdMoveWordBackward
+		  case CmdMoveWordForward
+		  case CmdMoveWordBackward
 		    
 		  Case CmdMoveToBeginningOfLine, CmdMoveToBeginningOfLineAndModifySelection
 		    If Keyboard.ShiftKey Then
@@ -165,6 +171,7 @@ Inherits TextInputCanvas
 		    MoveToBeginningOfLine
 		    
 		    requiresRedraw = True
+		    handled = True
 		    
 		  Case CmdMoveToEndOfLine, CmdMoveToEndOfLineAndModifySelection
 		    If Keyboard.ShiftKey Then
@@ -176,39 +183,40 @@ Inherits TextInputCanvas
 		    MoveToEndOfLine
 		    
 		    requiresRedraw = True
+		    handled = True
 		    
-		    // Case CmdMoveToBeginningOfParagraph
-		    // Case CmdMoveToEndOfParagraph
-		    // Case CmdMoveToEndOfDocument
-		    // Case CmdMoveToBeginningOfDocument
-		    // Case CmdPageDown
-		    // Case CmdPageUp
-		    // Case CmdCenterSelectionInVisibleArea
+		  case CmdMoveToBeginningOfParagraph
+		  case CmdMoveToEndOfParagraph
+		  case CmdMoveToEndOfDocument
+		  case CmdMoveToBeginningOfDocument
+		  case CmdPageDown
+		  case CmdPageUp
+		  case CmdCenterSelectionInVisibleArea
 		    // 
 		    // // NSResponder: Selection movement and scrolling
-		    // Case CmdMoveBackwardAndModifySelection
-		    // Case CmdMoveForwardAndModifySelection
-		    // Case CmdMoveWordForwardAndModifySelection
-		    // Case CmdMoveWordBackwardAndModifySelection
+		  case CmdMoveBackwardAndModifySelection
+		  case CmdMoveForwardAndModifySelection
+		  case CmdMoveWordForwardAndModifySelection
+		  case CmdMoveWordBackwardAndModifySelection
 		    
 		    // // NSResponder: Selection movement and scrolling
-		    // Case CmdMoveToBeginningOfLineAndModifySelection
-		    // Case CmdMoveToEndOfLineAndModifySelection
-		    // Case CmdMoveToBeginningOfParagraphAndModifySelection
-		    // Case CmdMoveToEndOfParagraphAndModifySelection
-		    // Case CmdMoveToEndOfDocumentAndModifySelection
-		    // Case CmdMoveToBeginningOfDocumentAndModifySelection
-		    // Case CmdPageDownAndModifySelection
-		    // Case CmdPageUpAndModifySelection
-		    // Case CmdMoveParagraphForwardAndModifySelection
-		    // Case CmdMoveParagraphBackwardAndModifySelection
+		  case CmdMoveToBeginningOfLineAndModifySelection
+		  case CmdMoveToEndOfLineAndModifySelection
+		  case CmdMoveToBeginningOfParagraphAndModifySelection
+		  case CmdMoveToEndOfParagraphAndModifySelection
+		  case CmdMoveToEndOfDocumentAndModifySelection
+		  case CmdMoveToBeginningOfDocumentAndModifySelection
+		  case CmdPageDownAndModifySelection
+		  case CmdPageUpAndModifySelection
+		  case CmdMoveParagraphForwardAndModifySelection
+		  case CmdMoveParagraphBackwardAndModifySelection
 		    // 
 		    // // NSResponder: Selection movement and scrolling (added in 10.3)
-		    // Case CmdMoveWordRight
-		    // Case CmdMoveWordLeft
+		  case CmdMoveWordRight
+		  case CmdMoveWordLeft
 		    
-		    // Case CmdMoveWordRightAndModifySelection
-		    // Case CmdMoveWordLeftAndModifySelection
+		  case CmdMoveWordRightAndModifySelection
+		  case CmdMoveWordLeftAndModifySelection
 		    // 
 		    // // NSResponder: Selection movement and scrolling (added in 10.6)
 		  Case CmdMoveToLeftEndOfLine, CmdMoveToLeftEndOfLineAndModifySelection
@@ -221,6 +229,7 @@ Inherits TextInputCanvas
 		    MoveToBeginningOfLine
 		    
 		    requiresRedraw = True
+		    handled = True
 		    
 		  Case CmdMoveToRightEndOfLine, CmdMoveToRightEndOfLineAndModifySelection
 		    If Keyboard.ShiftKey Then
@@ -232,63 +241,67 @@ Inherits TextInputCanvas
 		    MoveToEndOfLine
 		    
 		    requiresRedraw = True
+		    handled = True
 		    
-		    // Case CmdMoveToLeftEndOfLineAndModifySelection
-		    // Case CmdMoveToRightEndOfLineAndModifySelection
+		  case CmdMoveToLeftEndOfLineAndModifySelection
+		  case CmdMoveToRightEndOfLineAndModifySelection
 		    // 
 		    // // NSResponder: Selection movement and scrolling
-		    // Case CmdScrollPageUp
-		    // Case CmdScrollPageDown
-		    // Case CmdScrollLineUp
-		    // Case CmdScrollLineDown
+		  case CmdScrollPageUp
+		  case CmdScrollPageDown
+		  case CmdScrollLineUp
+		  case CmdScrollLineDown
 		    // 
 		    // // NSResponder: Selection movement and scrolling
-		    // Case CmdScrollToBeginningOfDocument
-		    // Case CmdScrollToEndOfDocument
+		  case CmdScrollToBeginningOfDocument
+		  case CmdScrollToEndOfDocument
 		    // 
 		    // // NSResponder: Graphical Element transposition
-		    // Case CmdTranspose
-		    // Case CmdTransposeWords
+		  case CmdTranspose
+		  case CmdTransposeWords
 		    // 
 		    // // NSResponder: Selections
-		    // Case CmdSelectAll
-		    // Case CmdSelectParagraph
-		    // Case CmdSelectLine
-		    // Case CmdSelectWord
+		  case CmdSelectAll
+		  case CmdSelectParagraph
+		  case CmdSelectLine
+		  case CmdSelectWord
 		    // 
 		    // // NSResponder: Insertions and Indentations
-		    // Case CmdIndent
-		    // Case CmdInsertTab
-		    // Case CmdInsertBacktab
+		  case CmdIndent
+		  case CmdInsertTab
+		  case CmdInsertBacktab
 		  Case CmdInsertNewline
 		    ResetSelStart
 		    InsertText(EndOfLine)
 		    requiresRedraw = True
+		    handled = True
 		    
 		  Case CmdInsertNewlineIgnoringFieldEditor
 		    ResetSelStart
 		    InsertText(EndOfLine)
 		    requiresRedraw = True
+		    handled = True
 		    
 		  Case CmdInsertLineBreak
 		    ResetSelStart
 		    InsertText(EndOfLine)
 		    requiresRedraw = True
+		    handled = True
 		    
-		    // Case CmdInsertParagraphSeparator
-		    // Case CmdInsertTabIgnoringFieldEditor
-		    // Case CmdInsertContainerBreak
-		    // Case CmdInsertSingleQuoteIgnoringSubstitution
-		    // Case CmdInsertDoubleQuoteIgnoringSubstitution
+		  case CmdInsertParagraphSeparator
+		  case CmdInsertTabIgnoringFieldEditor
+		  case CmdInsertContainerBreak
+		  case CmdInsertSingleQuoteIgnoringSubstitution
+		  case CmdInsertDoubleQuoteIgnoringSubstitution
 		    // 
 		    // // NSResponder: Case changes
-		    // Case CmdChangeCaseOfLetter
-		    // Case CmdUppercaseWord
-		    // Case CmdLowercaseWord
-		    // Case CmdCapitalizeWord
+		  case CmdChangeCaseOfLetter
+		  case CmdUppercaseWord
+		  case CmdLowercaseWord
+		  case CmdCapitalizeWord
 		    // 
 		    // // NSResponder: Deletions
-		    // Case CmdDeleteForward
+		  case CmdDeleteForward
 		  Case CmdDeleteBackward
 		    ResetSelStart
 		    If mInsertionPosition > 0 Then
@@ -298,44 +311,49 @@ Inherits TextInputCanvas
 		      
 		      requiresRedraw = True
 		    End If
+		    handled = True
 		    
-		    // Case CmdDeleteBackwardByDecomposingPreviousCharacter
-		    // Case CmdDeleteWordForward
-		    // Case CmdDeleteWordBackward
-		    // Case CmdDeleteToBeginningOfLine
-		    // Case CmdDeleteToEndOfLine
-		    // Case CmdDeleteToBeginningOfParagraph
-		    // Case CmdDeleteToEndOfParagraph
-		    // Case CmdYank
+		  case CmdDeleteBackwardByDecomposingPreviousCharacter
+		  case CmdDeleteWordForward
+		  case CmdDeleteWordBackward
+		  case CmdDeleteToBeginningOfLine
+		  case CmdDeleteToEndOfLine
+		  case CmdDeleteToBeginningOfParagraph
+		  case CmdDeleteToEndOfParagraph
+		  case CmdYank
 		    // 
 		    // // NSResponder: Completion
-		    // Case CmdComplete
+		  case CmdComplete
 		    // 
 		    // // NSResponder: Mark/Point manipulation
-		    // Case CmdSetMark
-		    // Case CmdDeleteToMark
-		    // Case CmdSelectToMark
-		    // Case CmdSwapWithMark
+		  case CmdSetMark
+		  case CmdDeleteToMark
+		  case CmdSelectToMark
+		  case CmdSwapWithMark
 		    // 
 		    // // NSResponder: Cancellation
-		    // Case CmdCancelOperation
+		  case CmdCancelOperation
 		    // 
 		    // // NSResponder: Writing Direction
-		    // Case CmdMakeBaseWritingDirectionNatural
-		    // Case CmdMakeBaseWritingDirectionLeftToRight
-		    // Case CmdMakeBaseWritingDirectionRightToLeft
-		    // Case CmdMakeTextWritingDirectionNatural
-		    // Case CmdMakeTextWritingDirectionLeftToRight
-		    // Case CmdMakeTextWritingDirectionRightToLeft
+		  case CmdMakeBaseWritingDirectionNatural
+		  case CmdMakeBaseWritingDirectionLeftToRight
+		  case CmdMakeBaseWritingDirectionRightToLeft
+		  case CmdMakeTextWritingDirectionNatural
+		  case CmdMakeTextWritingDirectionLeftToRight
+		  case CmdMakeTextWritingDirectionRightToLeft
 		    // 
 		    // // Not part of NSResponder, something custom we need for Windows
-		    // Case CmdToggleOverwriteMode
-		    // Case CmdCopy
-		    // Case CmdCut
-		    // Case CmdPaste
-		    // Case CmdUndo
+		  case CmdToggleOverwriteMode
+		  case CmdCopy
+		  case CmdCut
+		  case CmdPaste
+		  case CmdUndo
 		    
 		  End Select
+		  
+		  If handled = False Then
+		    dbglog currentmethodname, " unhandled ", command
+		  End If
 		  
 		  If requiresRedraw = True Then
 		    Self.invalidate
