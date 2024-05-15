@@ -27,14 +27,11 @@ Begin Window winCodeEditor
    Width           =   600
    Begin CodeEditorCanvas CodeEditorCanvas1
       AutoDeactivate  =   True
-      Bold            =   False
       Enabled         =   True
       Height          =   360
-      HelpTag         =   ""
       Index           =   -2147483648
       InitialParent   =   ""
-      Italic          =   False
-      Left            =   20
+      Left            =   0
       LockBottom      =   True
       LockedInPosition=   False
       LockLeft        =   True
@@ -46,15 +43,20 @@ Begin Window winCodeEditor
       TabIndex        =   0
       TabPanelIndex   =   0
       TabStop         =   True
-      Text            =   ""
-      TextColor       =   &cFFFFFF00
-      TextFont        =   "System"
-      TextSize        =   0.0
-      TextUnit        =   0
-      Top             =   20
-      Underline       =   False
+      TextColor       =   &c00000000
+      Tooltip         =   ""
+      Top             =   40
       Visible         =   True
-      Width           =   560
+      Width           =   600
+   End
+   Begin Toolbar1 Toolbar11
+      Enabled         =   True
+      Index           =   -2147483648
+      InitialParent   =   ""
+      LockedInPosition=   False
+      Scope           =   0
+      TabPanelIndex   =   0
+      Visible         =   True
    End
 End
 #tag EndWindow
@@ -71,13 +73,94 @@ End
 		  
 		  Dim lines() As String
 		  
+		  Dim tmp As String
+		  For j As Integer = 1 To 10
+		    tmp = tmp + "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ "
+		  Next
+		  
 		  For i As Integer = 1 To 100
-		    lines.append i.ToString
+		    lines.append Str(i,"000") + " " + tmp
 		  Next
 		  
 		  Me.Text = Join(lines, EndOfLine)
 		  
 		  Me.SelectedTextBackgroundColor = &c007700
+		  
+		End Sub
+	#tag EndEvent
+#tag EndEvents
+#tag Events Toolbar11
+	#tag Event
+		Sub Action(item As ToolItem)
+		  Select Case item.Caption
+		    
+		  Case "Bold"
+		    CodeEditorCanvas1.Bold = ToolbarButton(item).Pressed
+		    
+		  Case "Italic"
+		    CodeEditorCanvas1.Italic = ToolbarButton(item).Pressed
+		    
+		  Case "Underline"
+		    CodeEditorCanvas1.Underline = ToolbarButton(item).Pressed
+		    
+		  Case "Color"
+		    
+		    Dim c As Color
+		    
+		    If SelectColor(c, "Pick the text color") Then
+		      CodeEditorCanvas1.TextColor = c
+		    End
+		    
+		  Else
+		    Break
+		  End Select
+		  
+		  
+		End Sub
+	#tag EndEvent
+	#tag Event
+		Sub DropDownMenuAction(item As ToolItem, hitItem As MenuItem)
+		  CodeEditorCanvas1.TextFont = hititem.Text
+		End Sub
+	#tag EndEvent
+	#tag Event
+		Sub Open()
+		  // Create a menu
+		  
+		  Dim myMenu As New MenuItem
+		  
+		  Dim maximum As Integer = FontCount - 1
+		  
+		  For i As Integer = 0 To maximum
+		    
+		    myMenu.Append ( New menuitem(Font(i)) )
+		    
+		  Next
+		  
+		  For i As Integer = 0 To Me.Count
+		    Dim thisitem As toolitem = Me.item(i)
+		    
+		    If thisItem IsA ToolbarButton Then
+		      Select Case ToolbarButton(thisItem).Caption
+		      Case "Font" 
+		        // Assign the new menu to the toolitem..
+		        ToolbarButton(thisItem).menu = myMenu
+		        
+		      Case "Bold"
+		        ToolbarButton(thisItem).Pressed = CodeEditorCanvas1.Bold 
+		        
+		      Case "Italic"
+		        ToolbarButton(thisItem).Pressed = CodeEditorCanvas1.Italic 
+		        
+		      Case "Underline"
+		        ToolbarButton(thisItem).Pressed = CodeEditorCanvas1.Underline
+		        
+		      End select
+		    End If
+		    
+		  Next
+		  
+		  
 		  
 		End Sub
 	#tag EndEvent

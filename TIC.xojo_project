@@ -9,6 +9,7 @@ Folder=Code Editor Bits;Code Editor Bits;&h0000000033E667FF;&h0000000000000000;f
 Class=CustomTextArea;Code Editor Bits/CustomTextArea.xojo_code;&h000000005CC8A7FF;&h0000000033E667FF;false
 Window=winCodeEditor;Code Editor Bits/winCodeEditor.xojo_window;&h0000000042AF1FFF;&h0000000033E667FF;false
 Class=CodeEditorCanvas;Code Editor Bits/CodeEditorCanvas.xojo_code;&h0000000068971FFF;&h0000000033E667FF;false
+Toolbar=Toolbar1;Toolbar1.xojo_toolbar;&h0000000020F19FFF;&h0000000000000000;false
 DefaultWindow=winCodeEditor
 AppMenuBar=MainMenuBar
 MajorVersion=1

@@ -381,7 +381,7 @@ Inherits TextInputCanvas
 
 	#tag Event
 		Sub GotFocus()
-		  dbglog currentmethodname
+		  // dbglog currentmethodname
 		  
 		  mBlinkTimer.Mode = Timer.ModeMultiple
 		End Sub
@@ -464,7 +464,7 @@ Inherits TextInputCanvas
 
 	#tag Event
 		Sub LostFocus()
-		  dbglog currentmethodname
+		  // dbglog currentmethodname
 		  
 		  mBlinkTimer.Mode = Timer.ModeOff
 		End Sub
@@ -472,6 +472,7 @@ Inherits TextInputCanvas
 
 	#tag Event
 		Function MouseDown(x as Integer, y as Integer) As Boolean
+		  
 		  DoMouseDown(X, Y)
 		  
 		  Return True
@@ -480,12 +481,14 @@ Inherits TextInputCanvas
 
 	#tag Event
 		Sub MouseDrag(x as Integer, y as Integer)
+		  
 		  DoMouseDrag(X, y)
 		End Sub
 	#tag EndEvent
 
 	#tag Event
 		Sub MouseMove(X As Integer, Y As Integer)
+		  
 		  // dbglog currentmethodname
 		  
 		End Sub
@@ -493,9 +496,53 @@ Inherits TextInputCanvas
 
 	#tag Event
 		Sub MouseUp(x as Integer, y as Integer)
+		  
 		  // dbglog currentmethodname
 		  // 
 		End Sub
+	#tag EndEvent
+
+	#tag Event
+		Function MouseWheel(X As Integer, Y As Integer, deltaX as Integer, deltaY as Integer) As Boolean
+		  Dim isNatural As Boolean = True
+		  
+		  #If targetMacOS
+		    
+		    Try
+		      Declare Function SharedApplication_ Lib "AppKit" Selector "sharedApplication" (class_id As Ptr) As Ptr
+		      Declare Function NSClassFromString Lib "AppKit" (aClassName As CFStringRef) As Ptr
+		      Declare Function getCurrentEvent Lib "AppKit" Selector "currentEvent" (obj_id As Ptr) As Ptr
+		      Declare Function isInverted Lib "AppKit" Selector "isDirectionInvertedFromDevice" (id As Ptr) As Boolean
+		      
+		      Dim nsclass As ptr = NSClassFromString("NSApplication")
+		      Dim nsapp As ptr = SharedApplication_(nsclass)
+		      Dim currentevent As ptr = getCurrentEvent(nsapp)
+		      
+		      isNatural = isInverted(currentevent)
+		      
+		    Catch objx As ObjCException
+		      Break // ONLY call this IN a mousewheel event !
+		    End Try
+		    
+		    If isNatural Then
+		      deltaX = -1 * deltaX
+		      deltaY = -1 * deltaY
+		    End If
+		  #EndIf
+		  
+		  // clamp values so we dont scroll "the top" way down, but it can move up out of view
+		  // clamp values so we dont scroll "the left" way right, but it can move left out of view
+		  mHScrollValue = Min(0, mHScrollValue + deltaX)
+		  mVScrollValue = Min(0, mVScrollValue + deltaY)
+		  
+		  // clamp values so we dont scroll "the bottom" way up out of view
+		  Dim p As picture = GetMeasuringPicture()
+		  
+		  // dbglog currentmethodname, " deltaX:" , deltaX, " deltaY:" , deltaY, " natural:", isNatural, " scrollX:" , mHScrollValue , " scrollY:" , mVScrollValue
+		  
+		  Return True
+		  
+		End Function
 	#tag EndEvent
 
 	#tag Event
@@ -680,6 +727,24 @@ Inherits TextInputCanvas
 		  mBlinkTimer.Period = 500
 		  AddHandler mBlinkTimer.Action, AddressOf blinkTimerAction
 		  
+		  mVScrollbar = New ScrollBar
+		  mVScrollbar.Visible = False
+		  mVScrollbar.Width = 15
+		  mVScrollbar.Height = 15
+		  mVScrollbar.LineStep = 1
+		  mVScrollbar.PageStep = 20
+		  AddHandler mVScrollbar.ValueChanged, AddressOf vScrollerChanged
+		  
+		  mHScrollbar = New ScrollBar
+		  mHScrollbar.Visible = False
+		  mHScrollbar.Width = 15
+		  mHScrollbar.Height = 15
+		  mHScrollbar.LineStep = 1
+		  mHScrollbar.PageStep = 20
+		  AddHandler mHScrollbar.ValueChanged, AddressOf hScrollerChanged
+		  
+		  
+		  
 		End Sub
 	#tag EndMethod
 
@@ -725,6 +790,12 @@ Inherits TextInputCanvas
 		  
 		  mlines = Split( ReplaceLineEndings(mTextBuffer, EndOfLine), EndOfLine )
 		  
+		  // do we need vertical scrollbar ??????????
+		  If (mLines.ubound+1)*g.TextSize > Me.height Then
+		    // DbgLog CurrentMethodName, " needs vertical scroller"
+		  End If
+		  // DbgLog CurrentMethodName, " needs horizontal scroller"
+		  
 		  g.ClearRect 0, 0, g.Height, g.width
 		  
 		  // ok now ... draw away !
@@ -743,7 +814,8 @@ Inherits TextInputCanvas
 		  Dim drawAtX As Double
 		  Dim drawAtY As Double
 		  
-		  drawAtY = g.TextAscent
+		  drawAtY = g.TextAscent + mVScrollValue
+		  
 		  Dim drawnCount As Integer
 		  
 		  Dim startSelection As Integer = -1
@@ -755,54 +827,62 @@ Inherits TextInputCanvas
 		  End If
 		  
 		  For i As Integer = 0 To mlines.ubound
-		    drawAtX = 0
 		    
-		    Dim lineContainsSelection As Integer
-		    lineContainsSelection = 0
-		    If drawnCount <= startSelection And startselection <= drawnCount + Len(mlines(i)) + Len(EndOfLine) Then
-		      // line contains the start of the selection
-		      lineContainsSelection = 1
-		    ElseIf drawnCount <= endSelection And endSelection <= drawnCount + Len(mlines(i)) + Len(EndOfLine) Then
-		      // line contains the end of the selection
-		      lineContainsSelection = 2
-		    ElseIf startSelection <= drawnCount And drawnCount + Len(mlines(i)) + Len(EndOfLine) <= endSelection Then
-		      // line is fully selected from start to finish
-		      lineContainsSelection = 3
-		    End If
-		    
-		    If startSelection >= 0 And lineContainsSelection > 0 Then
-		      
-		      Dim beforetext As String
-		      Dim middletext As String
-		      Dim endText As String
-		      Dim selCount As Integer = endSelection - startSelection
-		      
-		      beforeText = Left( mlines(i), startSelection - drawnCount)
-		      middleText = Mid( mlines(i), startSelection - drawnCount + 1, selCount )
-		      endtext = Mid( mlines(i), startSelection - drawnCount + 1 + selcount )
-		      
-		      g.DrawString beforeText, drawAtX, drawAtY
-		      drawAtX = drawAtX + g.StringWidth(beforeText)
-		      
-		      // the highlight rect
-		      Dim tmpColor As Color = g.DrawingColor
-		      g.DrawingColor = SelectedTextBackgroundColor
-		      g.FillRectangle drawAtX, drawAty - g.TextAscent, g.StringWidth(middleText), g.TextHeight
-		      g.DrawingColor = tmpColor
-		      
-		      g.DrawString middleText, drawAtX, drawAtY
-		      drawAtX = drawAtX + g.StringWidth(middleText)
-		      
-		      g.DrawString endtext, drawAtX, drawAtY
-		      drawAtX = drawAtX + g.StringWidth(endtext)
-		      
+		    If drawAtY + g.TextHeight < 0 Then
+		      // do nothing
 		    Else
-		      g.DrawString mlines(i), drawAtX, drawAtY
+		      drawAtX = 0 + mHScrollValue
+		      
+		      Dim lineContainsSelection As Integer
+		      lineContainsSelection = 0
+		      If drawnCount <= startSelection And startselection <= drawnCount + Len(mlines(i)) + Len(EndOfLine) Then
+		        // line contains the start of the selection
+		        lineContainsSelection = 1
+		      ElseIf drawnCount <= endSelection And endSelection <= drawnCount + Len(mlines(i)) + Len(EndOfLine) Then
+		        // line contains the end of the selection
+		        lineContainsSelection = 2
+		      ElseIf startSelection <= drawnCount And drawnCount + Len(mlines(i)) + Len(EndOfLine) <= endSelection Then
+		        // line is fully selected from start to finish
+		        lineContainsSelection = 3
+		      End If
+		      
+		      If startSelection >= 0 And lineContainsSelection > 0 Then
+		        
+		        Dim beforetext As String
+		        Dim middletext As String
+		        Dim endText As String
+		        Dim selCount As Integer = endSelection - startSelection
+		        
+		        beforeText = Left( mlines(i), startSelection - drawnCount)
+		        middleText = Mid( mlines(i), startSelection - drawnCount + 1, selCount )
+		        endtext = Mid( mlines(i), startSelection - drawnCount + 1 + selcount )
+		        
+		        g.DrawString beforeText, drawAtX, drawAtY
+		        drawAtX = drawAtX + g.StringWidth(beforeText)
+		        
+		        // the highlight rect
+		        Dim tmpColor As Color = g.DrawingColor
+		        g.DrawingColor = SelectedTextBackgroundColor
+		        g.FillRectangle drawAtX, drawAty - g.TextAscent, g.StringWidth(middleText), g.TextHeight
+		        g.DrawingColor = tmpColor
+		        
+		        g.DrawString middleText, drawAtX, drawAtY
+		        drawAtX = drawAtX + g.StringWidth(middleText)
+		        
+		        g.DrawString endtext, drawAtX, drawAtY
+		        drawAtX = drawAtX + g.StringWidth(endtext)
+		        
+		      Else
+		        
+		        g.DrawString mlines(i), drawAtX, drawAtY
+		        
+		      End If
+		      
+		      drawAtX = g.StringWidth(mlines(i))
+		      
 		    End If
 		    
 		    drawnCount = drawnCount + Len(mlines(i)) + Len(EndOfLine)
-		    
-		    drawAtX = g.StringWidth(mlines(i))
 		    
 		    // if we're drawing the last line then we probably do not want to advance the Y position 
 		    If i < mlines.Ubound Then
@@ -813,13 +893,19 @@ Inherits TextInputCanvas
 		  
 		  // IF the cursor should be visible then draw it - otherwise dont and the clear above will have done the right thing
 		  If mCursorVisible Then
+		    
 		    Dim line, column As Integer
+		    
 		    PositionToLineAndColumn(mInsertionPosition, line, column)
+		    
+		    // line col to XY already adjusts for scrolled values
 		    Dim drawPosition As REAlbasic.point = LineColumnToXY(g, line, column)
 		    
-		    'dbglog " draw cursor @ insertion pos = " + Str(mInsertionPosition) + " line, col" + str(line) + "," +Str(column) + "  x,y = " + Str(drawPosition.X) +"," + Str(drawPosition.Y)
+		    Dim blinkertop As Double = drawPosition.Y - g.TextAscent
+		    Dim blinkerbottom As Double = drawPosition.Y - g.TextAscent + g.TextHeight
+		    Dim blinkerH As Double = drawPosition.X
 		    
-		    g.DrawLine drawPosition.X, drawPosition.Y - g.TextAscent, drawPosition.X, drawPosition.Y - g.TextAscent + g.TextHeight
+		    g.DrawLine blinkerH, blinkertop, blinkerH, blinkerbottom
 		  End If
 		  
 		End Sub
@@ -828,8 +914,6 @@ Inherits TextInputCanvas
 	#tag Method, Flags = &h1
 		Protected Sub DoMouseDown(X as integer, Y as integer)
 		  // dbglog currentmethodname
-		  
-		  ResetSelStart
 		  
 		  // double and triple clicks are both TIME & SPACE
 		  // if you click move a long way click this should not be a double or triple click
@@ -852,11 +936,11 @@ Inherits TextInputCanvas
 		    dbglog currentmethodname + " double click"
 		  Else
 		    mClickType = ClickTypes.Single
-		    dbglog currentmethodname + " single click"
+		    // dbglog currentmethodname + " single click"
 		  End If
 		  
-		  mLastClickX = x
-		  mLastClickY = y
+		  mLastClickX = x + Abs(mHScrollValue)
+		  mLastClickY = y + Abs(mVScrollValue)
 		  
 		  mLastClickTime = Ticks
 		  
@@ -870,16 +954,37 @@ Inherits TextInputCanvas
 		    
 		  Case ClickTypes.Single
 		    
-		    mInsertionPosition = LineColumnToPosition( line, col )
+		    Dim tmpPosition As Integer = LineColumnToPosition( line, col )
 		    
+		    If Keyboard.ShiftKey Then
+		      // extend the selection ?
+		      If mSelStartPosition < 0 Then
+		        dbglog currentmethodname , " single click set sel start "
+		        SetSelStart
+		      ElseIf tmpPosition < mSelStartPosition Then
+		        dbglog currentmethodname , " single click before existing "
+		      Else
+		        dbglog currentmethodname , " single click extends selection"
+		      End If
+		      
+		    Else
+		      
+		      ResetSelStart
+		      
+		      mInsertionPosition = tmpPosition // LineColumnToPosition( line, col )
+		      
+		    End If
+		    
+		    
+		    dbglog " insert = " , Str(mInsertionPosition) , " sel start = ", Str(mSelStartPosition)
+		    
+		    Me.invalidate
 		  End Select
 		End Sub
 	#tag EndMethod
 
 	#tag Method, Flags = &h1
 		Protected Sub DoMouseDrag(X as integer, y as integer)
-		  dbglog currentmethodname, " x:", x, " y:", y
-		  
 		  Dim p As Picture = GetMeasuringPicture
 		  
 		  Dim line, col As Integer
@@ -887,6 +992,7 @@ Inherits TextInputCanvas
 		  XYToLineColumn(p.Graphics, x, y, line, col)
 		  
 		  // if the selection wasnt started it will be now !
+		  // and if it was already we dont alter it
 		  SetSelStart
 		  
 		  mInsertionPosition = LineColumnToPosition(line, col)
@@ -939,17 +1045,22 @@ Inherits TextInputCanvas
 
 	#tag Method, Flags = &h1
 		Protected Function GetMeasuringPicture() As Picture
-		  Dim p As Picture = Self.TrueWindow.BitmapForCaching(10, 10)
 		  
-		  p.Graphics.ForeColor = Self.TextColor
-		  p.Graphics.TextFont = Self.TextFont
-		  p.Graphics.TextUnit = CType(Self.TextUnit, REALbasic.FontUnits)
-		  p.Graphics.TextSize = Self.TextSize
-		  p.Graphics.Underline = Self.Underline
-		  p.Graphics.Bold = Self.Bold
-		  p.Graphics.Italic = Self.Italic
+		  If mMeasuringPic Is Nil Then
+		    
+		    mMeasuringPic = Self.TrueWindow.BitmapForCaching(10, 10)
+		    
+		    mMeasuringPic.Graphics.ForeColor = Self.TextColor
+		    mMeasuringPic.Graphics.TextFont = Self.TextFont
+		    mMeasuringPic.Graphics.TextUnit = CType(Self.TextUnit, REALbasic.FontUnits)
+		    mMeasuringPic.Graphics.TextSize = Self.TextSize
+		    mMeasuringPic.Graphics.Underline = Self.Underline
+		    mMeasuringPic.Graphics.Bold = Self.Bold
+		    mMeasuringPic.Graphics.Italic = Self.Italic
+		    
+		  End If
 		  
-		  return p
+		  Return mMeasuringPic
 		End Function
 	#tag EndMethod
 
@@ -1019,6 +1130,12 @@ Inherits TextInputCanvas
 		  
 		  Return retVal
 		End Function
+	#tag EndMethod
+
+	#tag Method, Flags = &h21
+		Private Sub hScrollerChanged(instance as ScrollBar)
+		  break
+		End Sub
 	#tag EndMethod
 
 	#tag Method, Flags = &h1
@@ -1093,21 +1210,24 @@ Inherits TextInputCanvas
 		  // since we split things into lines in PAINT and again here
 		  // if we really need lines we should figure out how to do this as few times as possible
 		  
-		  Dim lines() As String = Split( ReplaceLineEndings(mTextBuffer, EndOfLine), EndOfLine )
+		  mlines = Split( ReplaceLineEndings(mTextBuffer, EndOfLine), EndOfLine )
 		  
-		  Dim X As Double
-		  Dim Y As Double
+		  Dim X As Double 
+		  Dim Y As Double 
 		  
-		  Y = g.TextAscent // line 0
+		  Y = y + g.TextAscent 
 		  y = y + (g.TextHeight * lineNumber)
 		  
-		  If lineNumber >= 0 And lineNumber <= lines.ubound Then
-		    Dim lineSeg As String = Left( lines(lineNumber), column ) 
-		    
-		    'dbglog CurrentMethodName + " [" + lineSeg + "]"
+		  If lineNumber >= 0 And lineNumber <= mlines.ubound Then
+		    Dim lineSeg As String = Left( mlines(lineNumber), column ) 
 		    
 		    X = g.StringWidth( lineseg )
 		  End If
+		  
+		  x = x + mHScrollValue
+		  y = y + mVScrollValue
+		  
+		  // dbglog CurrentMethodName, " line:" , lineNumber, " column:", column, " x:", Format(x,"-###0.00"), " y:", Format(y,"-###0.00"), " hscroll:" , mHScrollValue, " yScroll:" , mVScrollValue 
 		  
 		  Return New REALbasic.Point(x, y)
 		End Function
@@ -1155,8 +1275,6 @@ Inherits TextInputCanvas
 		    
 		  Wend
 		  
-		  'dbglog CurrentMethodName + " [line,col] = [" + Str(line) + ", " + Str(column) + "]"
-		  
 		  
 		End Sub
 	#tag EndMethod
@@ -1180,21 +1298,31 @@ Inherits TextInputCanvas
 
 	#tag Method, Flags = &h21
 		Private Sub SetSelStart()
-		  DbgLog CurrentMethodName
-		  
 		  // if selStart is already >= 0 then we wont overwrite it
 		  If mSelStartPosition < 0 Then
+		    // DbgLog CurrentMethodName + " same as insert"
 		    mSelStartPosition = mInsertionPosition
+		  Else
+		    // DbgLog CurrentMethodName + " untouched"
 		  End If
 		  
 		  
 		End Sub
 	#tag EndMethod
 
+	#tag Method, Flags = &h21
+		Private Sub vScrollerChanged(instance as ScrollBar)
+		  break
+		End Sub
+	#tag EndMethod
+
 	#tag Method, Flags = &h1
 		Protected Sub XYToLineColumn(g as Graphics, x as double, y as double, byref lineNumber as integer, byref column as Integer)
-		  Dim xPos As Double
-		  Dim yPos As Double
+		  // Dim xPos As Double
+		  // Dim yPos As Double
+		  
+		  x = x + Abs(mHScrollValue)
+		  y = y + Abs(mVScrollValue)
 		  
 		  // NOTE this is NOT EFFICIENT !!!!!!
 		  // since we split things into lines in PAINT and again here
@@ -1211,10 +1339,12 @@ Inherits TextInputCanvas
 		  
 		  Dim lineTopY As Double
 		  
-		  lineTopY = 0
 		  lineNumber = 0
+		  column = 0
 		  
-		  // so a person may not click rih on the baseline ans we need to see if the 
+		  lineTopY = 0 
+		  
+		  // so a person may not click right on the baseline and we need to see if the 
 		  // click is anywhere from the top of the line to the bottom
 		  While lineTopY < Y And lineTopY + g.TextHeight <= Y
 		    lineNumber = lineNumber + 1
@@ -1226,16 +1356,13 @@ Inherits TextInputCanvas
 		    // ok wo what column does this X represent ?
 		    
 		    column = 0
-		    Dim lineX As Double = 0
 		    Dim lineSeg As String = lines(lineNumber).Left(column)
-		    While column <= lines(lineNumber).Len and g.StringWidth( lineseg ) < x 
+		    While column <= lines(lineNumber).Len And g.StringWidth( lineseg ) < x 
 		      column = column + 1
 		      lineSeg = lines(lineNumber).Left(column)
 		    Wend
 		    // column has been incremented once too many times
 		    column = column - 1
-		    
-		    'dbglog CurrentMethodName + "[x,y] => [line,col] = [" + Str(lineNumber) + ", " + Str(column) + "] + [" + lineSeg + "]"
 		    
 		  End If
 		  
@@ -1244,28 +1371,58 @@ Inherits TextInputCanvas
 	#tag EndMethod
 
 
-	#tag Property, Flags = &h0
+	#tag ComputedProperty, Flags = &h0
+		#tag Getter
+			Get
+			  Return mBold
+			End Get
+		#tag EndGetter
+		#tag Setter
+			Set
+			  mBold = value
+			  
+			  mMeasuringPic = Nil
+			  
+			End Set
+		#tag EndSetter
 		Bold As Boolean
-	#tag EndProperty
+	#tag EndComputedProperty
 
-	#tag Property, Flags = &h0
+	#tag ComputedProperty, Flags = &h0
+		#tag Getter
+			Get
+			  Return mItalic
+			End Get
+		#tag EndGetter
+		#tag Setter
+			Set
+			  mItalic = value
+			  
+			  mMeasuringPic = Nil
+			  
+			End Set
+		#tag EndSetter
 		Italic As Boolean
-	#tag EndProperty
+	#tag EndComputedProperty
 
 	#tag Property, Flags = &h21
 		Private mBlinkTimer As Timer
 	#tag EndProperty
 
-	#tag Property, Flags = &h1
-		Protected mCachedTextAscent As double
+	#tag Property, Flags = &h21
+		Private mBold As Boolean
 	#tag EndProperty
 
-	#tag Property, Flags = &h1
-		Protected mCachedTextHeight As double
+	#tag Property, Flags = &h21
+		Private mCachedTextAscent As double
 	#tag EndProperty
 
-	#tag Property, Flags = &h1
-		Protected mClickType As ClickTypes
+	#tag Property, Flags = &h21
+		Private mCachedTextHeight As double
+	#tag EndProperty
+
+	#tag Property, Flags = &h21
+		Private mClickType As ClickTypes
 	#tag EndProperty
 
 	#tag Property, Flags = &h21
@@ -1277,23 +1434,39 @@ Inherits TextInputCanvas
 	#tag EndProperty
 
 	#tag Property, Flags = &h21
+		Private mHScrollbar As ScrollBar
+	#tag EndProperty
+
+	#tag Property, Flags = &h21
+		Private mHScrollValue As Integer
+	#tag EndProperty
+
+	#tag Property, Flags = &h21
 		Private mInsertionPosition As integer
 	#tag EndProperty
 
-	#tag Property, Flags = &h1
-		Protected mLastClickTime As double
+	#tag Property, Flags = &h21
+		Private mItalic As Boolean
 	#tag EndProperty
 
-	#tag Property, Flags = &h1
-		Protected mLastClickX As Double
+	#tag Property, Flags = &h21
+		Private mLastClickTime As double
 	#tag EndProperty
 
-	#tag Property, Flags = &h1
-		Protected mLastClickY As double
+	#tag Property, Flags = &h21
+		Private mLastClickX As Double
+	#tag EndProperty
+
+	#tag Property, Flags = &h21
+		Private mLastClickY As double
 	#tag EndProperty
 
 	#tag Property, Flags = &h21
 		Private mLines() As string
+	#tag EndProperty
+
+	#tag Property, Flags = &h21
+		Private mMeasuringPic As Picture
 	#tag EndProperty
 
 	#tag Property, Flags = &h21
@@ -1304,11 +1477,11 @@ Inherits TextInputCanvas
 		Private mSelStartPosition As Integer = -1
 	#tag EndProperty
 
-	#tag Property, Flags = &h1
-		Protected mShiftClick As boolean
+	#tag Property, Flags = &h21
+		Private mShiftClick As boolean
 	#tag EndProperty
 
-	#tag ComputedProperty, Flags = &h1
+	#tag ComputedProperty, Flags = &h21
 		#tag Getter
 			Get
 			  Return mmTextBuffer
@@ -1321,8 +1494,32 @@ Inherits TextInputCanvas
 			  me.invalidate
 			End Set
 		#tag EndSetter
-		Protected mTextBuffer As string
+		Private mTextBuffer As string
 	#tag EndComputedProperty
+
+	#tag Property, Flags = &h21
+		Private mTextFont As string
+	#tag EndProperty
+
+	#tag Property, Flags = &h21
+		Private mTextSize As double
+	#tag EndProperty
+
+	#tag Property, Flags = &h21
+		Private mTextUnit As Integer = 0
+	#tag EndProperty
+
+	#tag Property, Flags = &h21
+		Private mUnderline As boolean
+	#tag EndProperty
+
+	#tag Property, Flags = &h21
+		Private mVScrollbar As ScrollBar
+	#tag EndProperty
+
+	#tag Property, Flags = &h21
+		Private mVScrollValue As Integer
+	#tag EndProperty
 
 	#tag ComputedProperty, Flags = &h0
 		#tag Getter
@@ -1364,21 +1561,72 @@ Inherits TextInputCanvas
 		TextColor As Color
 	#tag EndProperty
 
-	#tag Property, Flags = &h0
+	#tag ComputedProperty, Flags = &h0
+		#tag Getter
+			Get
+			  Return mTextFont
+			End Get
+		#tag EndGetter
+		#tag Setter
+			Set
+			  
+			  mMeasuringPic = Nil
+			  
+			  mTextFont = value
+			End Set
+		#tag EndSetter
 		TextFont As string
-	#tag EndProperty
+	#tag EndComputedProperty
 
-	#tag Property, Flags = &h0
+	#tag ComputedProperty, Flags = &h0
+		#tag Getter
+			Get
+			  Return mTextSize
+			End Get
+		#tag EndGetter
+		#tag Setter
+			Set
+			  mMeasuringPic = Nil
+			  
+			  mTextSize = value
+			End Set
+		#tag EndSetter
 		TextSize As double
-	#tag EndProperty
+	#tag EndComputedProperty
 
-	#tag Property, Flags = &h0
-		TextUnit As Integer = 0
-	#tag EndProperty
+	#tag ComputedProperty, Flags = &h0
+		#tag Getter
+			Get
+			  Return mTextUnit
+			End Get
+		#tag EndGetter
+		#tag Setter
+			Set
+			  mTextUnit = value
+			  
+			  mMeasuringPic = Nil
+			  
+			End Set
+		#tag EndSetter
+		TextUnit As Integer
+	#tag EndComputedProperty
 
-	#tag Property, Flags = &h0
+	#tag ComputedProperty, Flags = &h0
+		#tag Getter
+			Get
+			  Return mUnderline
+			End Get
+		#tag EndGetter
+		#tag Setter
+			Set
+			  mUnderline = value
+			  
+			  mMeasuringPic = Nil
+			  
+			End Set
+		#tag EndSetter
 		Underline As boolean
-	#tag EndProperty
+	#tag EndComputedProperty
 
 
 	#tag Constant, Name = debugMe, Type = Boolean, Dynamic = False, Default = \"true", Scope = Private
@@ -1547,59 +1795,11 @@ Inherits TextInputCanvas
 			EditorType="Boolean"
 		#tag EndViewProperty
 		#tag ViewProperty
-			Name="TextFont"
-			Visible=true
-			Group="Font"
-			InitialValue="System"
-			Type="string"
-			EditorType="MultiLineEditor"
-		#tag EndViewProperty
-		#tag ViewProperty
-			Name="TextSize"
-			Visible=true
-			Group="Font"
-			InitialValue="0"
-			Type="double"
-			EditorType=""
-		#tag EndViewProperty
-		#tag ViewProperty
 			Name="TextColor"
 			Visible=true
 			Group="Font"
 			InitialValue="&c000000"
 			Type="Color"
-			EditorType=""
-		#tag EndViewProperty
-		#tag ViewProperty
-			Name="Italic"
-			Visible=true
-			Group="Font"
-			InitialValue=""
-			Type="Boolean"
-			EditorType=""
-		#tag EndViewProperty
-		#tag ViewProperty
-			Name="Bold"
-			Visible=true
-			Group="Font"
-			InitialValue=""
-			Type="Boolean"
-			EditorType=""
-		#tag EndViewProperty
-		#tag ViewProperty
-			Name="Underline"
-			Visible=true
-			Group="Font"
-			InitialValue=""
-			Type="boolean"
-			EditorType=""
-		#tag EndViewProperty
-		#tag ViewProperty
-			Name="TextUnit"
-			Visible=true
-			Group="Font"
-			InitialValue="0"
-			Type="Integer"
 			EditorType=""
 		#tag EndViewProperty
 		#tag ViewProperty
@@ -1624,6 +1824,54 @@ Inherits TextInputCanvas
 			Group="Behavior"
 			InitialValue="&c000000"
 			Type="Color"
+			EditorType=""
+		#tag EndViewProperty
+		#tag ViewProperty
+			Name="TextFont"
+			Visible=false
+			Group="Behavior"
+			InitialValue=""
+			Type="string"
+			EditorType="MultiLineEditor"
+		#tag EndViewProperty
+		#tag ViewProperty
+			Name="TextSize"
+			Visible=false
+			Group="Behavior"
+			InitialValue=""
+			Type="double"
+			EditorType=""
+		#tag EndViewProperty
+		#tag ViewProperty
+			Name="TextUnit"
+			Visible=false
+			Group="Behavior"
+			InitialValue=""
+			Type="Integer"
+			EditorType=""
+		#tag EndViewProperty
+		#tag ViewProperty
+			Name="Bold"
+			Visible=false
+			Group="Behavior"
+			InitialValue=""
+			Type="Boolean"
+			EditorType=""
+		#tag EndViewProperty
+		#tag ViewProperty
+			Name="Italic"
+			Visible=false
+			Group="Behavior"
+			InitialValue=""
+			Type="Boolean"
+			EditorType=""
+		#tag EndViewProperty
+		#tag ViewProperty
+			Name="Underline"
+			Visible=false
+			Group="Behavior"
+			InitialValue=""
+			Type="boolean"
 			EditorType=""
 		#tag EndViewProperty
 	#tag EndViewBehavior
