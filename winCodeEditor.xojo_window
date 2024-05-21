@@ -27,6 +27,7 @@ Begin Window winCodeEditor
    Width           =   600
    Begin CodeEditorCanvas CodeEditorCanvas1
       AutoDeactivate  =   True
+      BackgroundColor =   &c00000000
       Bold            =   False
       Enabled         =   True
       Height          =   360
@@ -42,10 +43,15 @@ Begin Window winCodeEditor
       ReadOnly        =   False
       Scope           =   0
       SelectedTextBackgroundColor=   &c00000000
+      SelLength       =   0
+      SelStart        =   0
+      SelTextColor    =   &c00000000
+      Styled          =   False
       TabIndex        =   0
       TabPanelIndex   =   0
       TabStop         =   True
       Text            =   ""
+      TextAlignment   =   0
       TextColor       =   &c00000000
       TextFont        =   ""
       TextSize        =   0.0
@@ -69,6 +75,19 @@ End
 #tag EndWindow
 
 #tag WindowCode
+	#tag Method, Flags = &h0
+		Sub DoDebugHack()
+		  #If DebugBuild
+		    
+		    
+		    // CodeEditorCanvas1.AppendText " abcdefghijklmnopqrstuvwxyz"
+		    
+		    CodeEditorCanvas1.SelStart = 32
+		    CodeEditorCanvas1.SelLength = 3
+		  #EndIf
+		End Sub
+	#tag EndMethod
+
 	#tag Method, Flags = &h0
 		Sub UpdateToolbar()
 		  
@@ -107,20 +126,22 @@ End
 		  Me.TextSize = 14
 		  
 		  Dim lines() As String
-		  
-		  Dim tmp As String
-		  For j As Integer = 1 To 10
-		    tmp = tmp + "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ "
-		  Next
-		  
-		  For i As Integer = 1 To 100
-		    lines.append Str(i,"000") + " " + tmp
-		  Next
-		  
-		  Me.Text = Join(lines, EndOfLine)
+		  // 
+		  // Dim tmp As String
+		  // For j As Integer = 1 To 10
+		  // tmp = tmp + "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ "
+		  // Next
+		  // 
+		  // For i As Integer = 1 To 100
+		  // lines.append Str(i,"000") + " " + tmp
+		  // Next
+		  // 
+		  // Me.Text = Join(lines, EndOfLine)
 		  
 		  Me.SelectedTextBackgroundColor = &c007700
 		  
+		  
+		  me.AppendText " abcdefghijklmnopqrstuvwxyz" + endofline + " abcdefghijklmnopqrstuvwxyz" + endofline + " abcdefghijklmnopqrstuvwxyz"
 		End Sub
 	#tag EndEvent
 #tag EndEvents
@@ -147,6 +168,11 @@ End
 		    End
 		    
 		    UpdateToolbar
+		    
+		    #If DebugBuild
+		  Case "debug"
+		    DoDebugHack()
+		    #EndIf
 		    
 		  Else
 		    Break
@@ -262,6 +288,16 @@ End
 		    End If
 		    
 		  Next
+		  
+		  
+		  #If DebugBuild Then
+		    Dim debugTB As New ToolbarButton
+		    
+		    debugTB.Caption = "debug"
+		    
+		    Me.AddButton debugTB
+		    
+		  #EndIf
 		  
 		  
 		  

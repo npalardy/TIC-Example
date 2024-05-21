@@ -54,65 +54,99 @@ Inherits TextInputCanvas
 		  // and "back" with "left" which assumes
 		  // left to right writing systems
 		  
-		  dim handled as boolean 
+		  Dim handled As Boolean 
 		  Dim requiresRedraw As Boolean = False
 		  
 		  Select Case command
 		    // 
 		    // // NSResponder: Selection movement and scrolling
-		  Case CmdMoveForward, CmdMoveForwardAndModifySelection
-		    If Keyboard.ShiftKey Then
-		      SetSelStart
-		    Else
+		  Case CmdMoveForward, CmdMoveRight // assumes left to right writing so "forward" is "to the right"
+		    
+		    If HasSelection Then
 		      ResetSelStart
+		    Else
+		      mInsertionPosition = Min(mInsertionPosition + 1, Len(mTextBuffer))
 		    End If
 		    
-		    mInsertionPosition = Min(mInsertionPosition + 1, Len(mTextBuffer))
 		    dbglog " insertion pos = " + Str(mInsertionPosition)
 		    requiresRedraw = True
 		    handled = True
 		    
-		  Case CmdMoveRight, CmdMoveRightAndModifySelection
-		    If Keyboard.ShiftKey Then
-		      SetSelStart
-		    Else
-		      ResetSelStart
+		  Case CmdMoveForwardAndModifySelection, CmdMoveRightAndModifySelection
+		    
+		    // on macOS this will set which one gets altered !
+		    // if the FIRST press after setting the selection is a left then this moves "the lower bounds" - generally the selStart
+		    // if the FIRST press after setting the selection is a right then this moves "the upper bounds" - generally the insertion point
+		    If mWhichToAlter = Selections.None Then
+		      mWhichToAlter = Selections.UpperBound
 		    End If
 		    
-		    mInsertionPosition = Min(mInsertionPosition + 1, Len(mTextBuffer))
+		    SetSelStart
+		    
+		    If mWhichToAlter = selections.UpperBound Then
+		      mInsertionPosition = Min(mInsertionPosition + 1, Len(mTextBuffer))
+		      dbglog " insertion pos = " + Str(mInsertionPosition)
+		    Else
+		      mSelStartPosition = Min(mSelStartPosition + 1, Len(mTextBuffer))
+		      dbglog " sel start pos = " + Str(mSelStartPosition)
+		    End If
+		    
+		    requiresRedraw = True
+		    handled = True
+		    
+		  Case CmdMoveLeft, CmdMoveBackward // assumes left to right writing
+		    If HasSelection Then
+		      mInsertionPosition = mSelStartPosition
+		      ResetSelStart
+		    Else
+		      mInsertionPosition = Max(mInsertionPosition - 1, 0)
+		    End If
+		    
 		    dbglog " insertion pos = " + Str(mInsertionPosition)
 		    requiresRedraw = True
 		    handled = True
 		    
-		  Case CmdMoveBackward, CmdMoveBackwardAndModifySelection
-		    If Keyboard.ShiftKey Then
-		      SetSelStart
-		    Else
-		      ResetSelStart
+		  Case CmdMoveLeftAndModifySelection, CmdMoveBackwardAndModifySelection
+		    
+		    // on macOS this will set which one gets altered !
+		    // if the FIRST press after setting the selection is a left then this moves "the lower bounds" - generally the selStart
+		    // if the FIRST press after setting the selection is a right then this moves "the upper bounds" - generally the insertion point
+		    If mWhichToAlter = selections.none Then
+		      mWhichToAlter = Selections.LowerBound
 		    End If
 		    
-		    mInsertionPosition = Max(mInsertionPosition - 1, 0)
-		    dbglog " insertion pos = " + Str(mInsertionPosition)
-		    requiresRedraw = True
-		    handled = True
+		    SetSelStart
 		    
-		  Case CmdMoveLeft, CmdMoveLeftAndModifySelection
-		    If Keyboard.ShiftKey Then
-		      SetSelStart
+		    If mWhichToAlter = selections.UpperBound Then
+		      mInsertionPosition = Min(mInsertionPosition - 1, Len(mTextBuffer))
+		      dbglog " insertion pos = " + Str(mInsertionPosition)
 		    Else
-		      ResetSelStart
+		      mSelStartPosition = Max(mSelStartPosition - 1, 0)
+		      dbglog " sel start pos = " + Str(mSelStartPosition)
 		    End If
 		    
-		    mInsertionPosition = Max(mInsertionPosition - 1, 0)
-		    dbglog " insertion pos = " + Str(mInsertionPosition)
+		    
+		    dbglog " sel start pos = " + Str(mSelStartPosition)
 		    requiresRedraw = True
 		    handled = True
 		    
 		  Case CmdMoveUp, CmdMoveUpAndModifySelection
 		    If Keyboard.ShiftKey Then
+		      
+		      If mWhichToAlter = selections.none Then
+		        mWhichToAlter = Selections.LowerBound
+		      End If
+		      
 		      SetSelStart
+		      
 		    Else
-		      ResetSelStart
+		      
+		      If HasSelection Then
+		        mInsertionPosition = mSelStartPosition
+		        ResetSelStart
+		      Else
+		        ResetSelStart
+		      End If
 		    End If
 		    
 		    Dim line, column As Integer
@@ -136,9 +170,20 @@ Inherits TextInputCanvas
 		    
 		  Case CmdMoveDown, CmdMoveDownAndModifySelection
 		    If Keyboard.ShiftKey Then
+		      
+		      If mWhichToAlter = selections.none Then
+		        mWhichToAlter = Selections.UpperBound
+		      End If
+		      
 		      SetSelStart
+		      
 		    Else
-		      ResetSelStart
+		      If HasSelection Then
+		        mInsertionPosition = mSelStartPosition
+		        ResetSelStart
+		      Else
+		        ResetSelStart
+		      End If
 		    End If
 		    
 		    Dim line, column As Integer
@@ -724,6 +769,20 @@ Inherits TextInputCanvas
 	#tag EndMenuHandler
 
 
+	#tag Method, Flags = &h0
+		Sub AppendText(toAppend as string)
+		  
+		  ResetSelStart
+		  
+		  mTextBuffer = mTextBuffer + toAppend
+		  
+		  mInsertionPosition = mTextBuffer.Len + 1
+		  
+		  Me.Invalidate
+		  
+		End Sub
+	#tag EndMethod
+
 	#tag Method, Flags = &h21
 		Private Sub blinkTimerAction(instance as Timer)
 		  mCursorVisible = Not mCursorVisible
@@ -733,6 +792,17 @@ Inherits TextInputCanvas
 		  // dbglog CurrentMethodName + " cursor visible = " + Str(mCursorVisible)
 		  
 		End Sub
+	#tag EndMethod
+
+	#tag Method, Flags = &h0
+		Function CharPosAtXY(x as integer, y as integer) As integer
+		  Dim line, col As Integer
+		  
+		  XYToLineColumn( mMeasuringPic.Graphics, x, y, line, col)
+		  
+		  Return LineColumnToPosition(line, col)
+		  
+		End Function
 	#tag EndMethod
 
 	#tag Method, Flags = &h0
@@ -786,8 +856,8 @@ Inherits TextInputCanvas
 		End Sub
 	#tag EndMethod
 
-	#tag Method, Flags = &h1
-		Protected Sub DoDraw(G as graphics, areas() as object)
+	#tag Method, Flags = &h21
+		Private Sub DoDraw(G as graphics, areas() as object)
 		  #Pragma unused g
 		  #Pragma unused areas
 		  
@@ -910,7 +980,7 @@ Inherits TextInputCanvas
 		  Next
 		  
 		  // IF the cursor should be visible then draw it - otherwise dont and the clear above will have done the right thing
-		  If mCursorVisible Then
+		  If mCursorVisible and HasSelection = false Then
 		    
 		    Dim line, column As Integer
 		    
@@ -929,8 +999,8 @@ Inherits TextInputCanvas
 		End Sub
 	#tag EndMethod
 
-	#tag Method, Flags = &h1
-		Protected Sub DoMouseDown(X as integer, Y as integer)
+	#tag Method, Flags = &h21
+		Private Sub DoMouseDown(X as integer, Y as integer)
 		  // dbglog currentmethodname
 		  
 		  // double and triple clicks are both TIME & SPACE
@@ -1001,8 +1071,8 @@ Inherits TextInputCanvas
 		End Sub
 	#tag EndMethod
 
-	#tag Method, Flags = &h1
-		Protected Sub DoMouseDrag(X as integer, y as integer)
+	#tag Method, Flags = &h21
+		Private Sub DoMouseDrag(X as integer, y as integer)
 		  Dim p As Picture = GetMeasuringPicture
 		  
 		  Dim line, col As Integer
@@ -1019,8 +1089,8 @@ Inherits TextInputCanvas
 		End Sub
 	#tag EndMethod
 
-	#tag Method, Flags = &h1
-		Protected Function DoubleClickInterval() As Double
+	#tag Method, Flags = &h21
+		Private Function DoubleClickInterval() As Double
 		  // returns as double that is the # of TICKS
 		  
 		  #If TargetMacOS
@@ -1061,8 +1131,8 @@ Inherits TextInputCanvas
 		End Function
 	#tag EndMethod
 
-	#tag Method, Flags = &h1
-		Protected Function GetMeasuringPicture() As Picture
+	#tag Method, Flags = &h21
+		Private Function GetMeasuringPicture() As Picture
 		  
 		  If mMeasuringPic Is Nil Then
 		    
@@ -1082,8 +1152,8 @@ Inherits TextInputCanvas
 		End Function
 	#tag EndMethod
 
-	#tag Method, Flags = &h1
-		Protected Function GetRectForRange(range as TextRange) As REALbasic.Rect
+	#tag Method, Flags = &h21
+		Private Function GetRectForRange(range as TextRange) As REALbasic.Rect
 		  
 		  dbglog currentmethodname + " requested range =[" + Str(range.Location) + ", " + Str(range.Length) + "]"
 		  
@@ -1109,8 +1179,8 @@ Inherits TextInputCanvas
 		End Function
 	#tag EndMethod
 
-	#tag Method, Flags = &h1
-		Protected Function GetSelectedRange() As TextRange
+	#tag Method, Flags = &h21
+		Private Function GetSelectedRange() As TextRange
 		  
 		  Dim startPos As Integer = mInsertionPosition
 		  Dim endPos As Integer = mInsertionPosition
@@ -1127,8 +1197,8 @@ Inherits TextInputCanvas
 		End Function
 	#tag EndMethod
 
-	#tag Method, Flags = &h1
-		Protected Function GetTextForRange(range as TextRange) As string
+	#tag Method, Flags = &h21
+		Private Function GetTextForRange(range as TextRange) As string
 		  
 		  Dim retVal As String = mTextBuffer.Mid(range.Location+1, range.Length)
 		  
@@ -1139,8 +1209,8 @@ Inherits TextInputCanvas
 		End Function
 	#tag EndMethod
 
-	#tag Method, Flags = &h1
-		Protected Function GetTextLength() As Integer
+	#tag Method, Flags = &h21
+		Private Function GetTextLength() As Integer
 		  
 		  Dim retVal As Integer = mTextBuffer.Len
 		  
@@ -1156,8 +1226,8 @@ Inherits TextInputCanvas
 		End Sub
 	#tag EndMethod
 
-	#tag Method, Flags = &h1
-		Protected Sub InsertText(theText as string, range as textRange = nil)
+	#tag Method, Flags = &h21
+		Private Sub InsertText(theText as string, range as textRange = nil)
 		  theText = ReplaceLineEndings(theText, EndOfLine)
 		  
 		  Dim selectedLength As Integer = 0
@@ -1193,8 +1263,8 @@ Inherits TextInputCanvas
 		End Sub
 	#tag EndMethod
 
-	#tag Method, Flags = &h1
-		Protected Function LineColumnToPosition(line as integer, column as integer) As integer
+	#tag Method, Flags = &h21
+		Private Function LineColumnToPosition(line as integer, column as integer) As integer
 		  // NOTE this is NOT EFFICIENT !!!!!!
 		  // since we split things into lines in PAINT and again here
 		  // if we really need lines we should figure out how to do this as few times as possible
@@ -1219,8 +1289,8 @@ Inherits TextInputCanvas
 		End Function
 	#tag EndMethod
 
-	#tag Method, Flags = &h1
-		Protected Function LineColumnToXY(g as Graphics, lineNumber as integer, column as Integer) As REALbasic.Point
+	#tag Method, Flags = &h21
+		Private Function LineColumnToXY(g as Graphics, lineNumber as integer, column as Integer) As REALbasic.Point
 		  Dim xPos As Double
 		  Dim yPos As Double
 		  
@@ -1251,8 +1321,8 @@ Inherits TextInputCanvas
 		End Function
 	#tag EndMethod
 
-	#tag Method, Flags = &h1
-		Protected Sub MoveToBeginningOfLine()
+	#tag Method, Flags = &h21
+		Private Sub MoveToBeginningOfLine()
 		  Dim line, column As Integer
 		  PositionToLineAndColumn(mInsertionPosition, line, column)
 		  column = 0
@@ -1261,8 +1331,8 @@ Inherits TextInputCanvas
 		End Sub
 	#tag EndMethod
 
-	#tag Method, Flags = &h1
-		Protected Sub MoveToEndOfLine()
+	#tag Method, Flags = &h21
+		Private Sub MoveToEndOfLine()
 		  Dim line, column As Integer
 		  PositionToLineAndColumn(mInsertionPosition, line, column)
 		  
@@ -1274,8 +1344,8 @@ Inherits TextInputCanvas
 		End Sub
 	#tag EndMethod
 
-	#tag Method, Flags = &h1
-		Protected Sub PositionToLineAndColumn(position as integer, byref line as integer, byref column as integer)
+	#tag Method, Flags = &h21
+		Private Sub PositionToLineAndColumn(position as integer, byref line as integer, byref column as integer)
 		  Dim currPos As Integer = 1
 		  line = 0
 		  column = 0
@@ -1300,11 +1370,12 @@ Inherits TextInputCanvas
 	#tag Method, Flags = &h21
 		Private Sub ResetSelStart()
 		  mSelStartPosition = -1
+		  mWhichToAlter = Selections.None
 		End Sub
 	#tag EndMethod
 
-	#tag Method, Flags = &h1
-		Protected Function SelectedText() As string
+	#tag Method, Flags = &h21
+		Private Function SelectedText() As string
 		  
 		  
 		  Dim selectedRange As TextRange = GetSelectedRange
@@ -1334,8 +1405,8 @@ Inherits TextInputCanvas
 		End Sub
 	#tag EndMethod
 
-	#tag Method, Flags = &h1
-		Protected Sub XYToLineColumn(g as Graphics, x as double, y as double, byref lineNumber as integer, byref column as Integer)
+	#tag Method, Flags = &h21
+		Private Sub XYToLineColumn(g as Graphics, x as double, y as double, byref lineNumber as integer, byref column as Integer)
 		  // Dim xPos As Double
 		  // Dim yPos As Double
 		  
@@ -1392,6 +1463,27 @@ Inherits TextInputCanvas
 	#tag ComputedProperty, Flags = &h0
 		#tag Getter
 			Get
+			  // #pragma todo "implement this !"
+			  
+			  Return mBackgroundColor
+			  
+			End Get
+		#tag EndGetter
+		#tag Setter
+			Set
+			  // #pragma todo "implement this !"
+			  
+			  mBackgroundColor = value
+			  
+			  me.Invalidate
+			End Set
+		#tag EndSetter
+		BackgroundColor As Color
+	#tag EndComputedProperty
+
+	#tag ComputedProperty, Flags = &h0
+		#tag Getter
+			Get
 			  Return mBold
 			End Get
 		#tag EndGetter
@@ -1401,9 +1493,19 @@ Inherits TextInputCanvas
 			  
 			  mMeasuringPic = Nil
 			  
+			  me.Invalidate
 			End Set
 		#tag EndSetter
 		Bold As Boolean
+	#tag EndComputedProperty
+
+	#tag ComputedProperty, Flags = &h0
+		#tag Getter
+			Get
+			  return SelLength > 0
+			End Get
+		#tag EndGetter
+		HasSelection As Boolean
 	#tag EndComputedProperty
 
 	#tag ComputedProperty, Flags = &h0
@@ -1418,10 +1520,15 @@ Inherits TextInputCanvas
 			  
 			  mMeasuringPic = Nil
 			  
+			  me.Invalidate
 			End Set
 		#tag EndSetter
 		Italic As Boolean
 	#tag EndComputedProperty
+
+	#tag Property, Flags = &h21
+		Private mBackgroundColor As Color
+	#tag EndProperty
 
 	#tag Property, Flags = &h21
 		Private mBlinkTimer As Timer
@@ -1492,6 +1599,10 @@ Inherits TextInputCanvas
 	#tag EndProperty
 
 	#tag Property, Flags = &h21
+		Private mSelectedTextBackgroundColor As Color
+	#tag EndProperty
+
+	#tag Property, Flags = &h21
 		Private mSelStartPosition As Integer = -1
 	#tag EndProperty
 
@@ -1514,6 +1625,10 @@ Inherits TextInputCanvas
 		#tag EndSetter
 		Private mTextBuffer As string
 	#tag EndComputedProperty
+
+	#tag Property, Flags = &h21
+		Private mTextColor As Color
+	#tag EndProperty
 
 	#tag Property, Flags = &h21
 		Private mTextFont As string
@@ -1539,6 +1654,10 @@ Inherits TextInputCanvas
 		Private mVScrollValue As Integer
 	#tag EndProperty
 
+	#tag Property, Flags = &h21
+		Private mWhichToAlter As Selections
+	#tag EndProperty
+
 	#tag ComputedProperty, Flags = &h0
 		#tag Getter
 			Get
@@ -1555,9 +1674,119 @@ Inherits TextInputCanvas
 		ReadOnly As boolean
 	#tag EndComputedProperty
 
-	#tag Property, Flags = &h0
+	#tag ComputedProperty, Flags = &h0
+		#tag Getter
+			Get
+			  Return mSelectedTextBackgroundColor
+			End Get
+		#tag EndGetter
+		#tag Setter
+			Set
+			  mSelectedTextBackgroundColor = value
+			  
+			  me.Invalidate
+			End Set
+		#tag EndSetter
 		SelectedTextBackgroundColor As Color
-	#tag EndProperty
+	#tag EndComputedProperty
+
+	#tag ComputedProperty, Flags = &h0
+		#tag Getter
+			Get
+			  // #pragma todo "implement this !"
+			  
+			  If mSelStartPosition < 0 Then
+			    Return 0
+			  Else
+			    Dim high, low As Integer
+			    
+			    high = Max(Abs(mInsertionPosition), Abs(mSelStartPosition))
+			    low = Min(Abs(mInsertionPosition), Abs(mSelStartPosition))
+			    
+			    Return high - low
+			    
+			  End If
+			End Get
+		#tag EndGetter
+		#tag Setter
+			Set
+			  #Pragma todo "implement this !"
+			  
+			  // set the mSelStart to be ?????????
+			  If value <= 0 Then
+			    ResetSelStart
+			  Else
+			    SetSelStart
+			    mInsertionPosition = mSelStartPosition + value
+			  End If
+			  
+			End Set
+		#tag EndSetter
+		SelLength As Integer
+	#tag EndComputedProperty
+
+	#tag ComputedProperty, Flags = &h0
+		#tag Getter
+			Get
+			  // #pragma todo "implement this !"
+			  
+			  return mSelStartPosition
+			End Get
+		#tag EndGetter
+		#tag Setter
+			Set
+			  #Pragma todo "implement this !"
+			  
+			  ResetSelStart
+			  
+			  mInsertionPosition = Min(Max(0, value), mTextBuffer.Length)
+			  
+			  SetSelStart
+			  
+			End Set
+		#tag EndSetter
+		SelStart As Integer
+	#tag EndComputedProperty
+
+	#tag ComputedProperty, Flags = &h0
+		#tag Getter
+			Get
+			  // #pragma todo "implement this !"
+			  return TextColor
+			End Get
+		#tag EndGetter
+		#tag Setter
+			Set
+			  // #pragma todo "implement this !"
+			  
+			  TextColor = value
+			  
+			  me.Invalidate
+			End Set
+		#tag EndSetter
+		SelTextColor As Color
+	#tag EndComputedProperty
+
+	#tag ComputedProperty, Flags = &h0
+		#tag Getter
+			Get
+			  #Pragma todo "implement this !"
+			  
+			  // for now we'll leave the prgam as its a warning but do NOTHING !
+			  
+			End Get
+		#tag EndGetter
+		#tag Setter
+			Set
+			  #Pragma todo "implement this !"
+			  
+			  // for now we'll leave the prgam as its a warning but do NOTHING !
+			  // styled text is not supported
+			  
+			End Set
+		#tag EndSetter
+		Styled As Boolean
+	#tag EndComputedProperty
 
 	#tag ComputedProperty, Flags = &h0
 		#tag Getter
@@ -1575,9 +1804,38 @@ Inherits TextInputCanvas
 		Text As String
 	#tag EndComputedProperty
 
-	#tag Property, Flags = &h0
+	#tag ComputedProperty, Flags = &h0
+		#tag Getter
+			Get
+			  return TextAlignments.Left
+			End Get
+		#tag EndGetter
+		#tag Setter
+			Set
+			  // #Pragma todo "implement this !"
+			  
+			  // we're actually going to ignore this here :)
+			  
+			End Set
+		#tag EndSetter
+		TextAlignment As TextAlignments
+	#tag EndComputedProperty
+
+	#tag ComputedProperty, Flags = &h0
+		#tag Getter
+			Get
+			  Return mTextColor
+			End Get
+		#tag EndGetter
+		#tag Setter
+			Set
+			  mTextColor = value
+			  
+			  me.Invalidate
+			End Set
+		#tag EndSetter
 		TextColor As Color
-	#tag EndProperty
+	#tag EndComputedProperty
 
 	#tag ComputedProperty, Flags = &h0
 		#tag Getter
@@ -1591,6 +1849,8 @@ Inherits TextInputCanvas
 			  mMeasuringPic = Nil
 			  
 			  mTextFont = value
+			  
+			  me.Invalidate
 			End Set
 		#tag EndSetter
 		TextFont As string
@@ -1607,6 +1867,8 @@ Inherits TextInputCanvas
 			  mMeasuringPic = Nil
 			  
 			  mTextSize = value
+			  
+			  me.Invalidate
 			End Set
 		#tag EndSetter
 		TextSize As double
@@ -1624,6 +1886,7 @@ Inherits TextInputCanvas
 			  
 			  mMeasuringPic = Nil
 			  
+			  me.Invalidate
 			End Set
 		#tag EndSetter
 		TextUnit As Integer
@@ -1641,6 +1904,7 @@ Inherits TextInputCanvas
 			  
 			  mMeasuringPic = Nil
 			  
+			  me.Invalidate
 			End Set
 		#tag EndSetter
 		Underline As boolean
@@ -1656,6 +1920,12 @@ Inherits TextInputCanvas
 		  single=1
 		  double=2
 		triple=3
+	#tag EndEnum
+
+	#tag Enum, Name = Selections, Type = Integer, Flags = &h0
+		None
+		  UpperBound
+		LowerBound
 	#tag EndEnum
 
 
@@ -1813,14 +2083,6 @@ Inherits TextInputCanvas
 			EditorType="Boolean"
 		#tag EndViewProperty
 		#tag ViewProperty
-			Name="TextColor"
-			Visible=true
-			Group="Font"
-			InitialValue="&c000000"
-			Type="Color"
-			EditorType=""
-		#tag EndViewProperty
-		#tag ViewProperty
 			Name="ReadOnly"
 			Visible=true
 			Group="Behavior"
@@ -1835,14 +2097,6 @@ Inherits TextInputCanvas
 			InitialValue=""
 			Type="String"
 			EditorType="MultiLineEditor"
-		#tag EndViewProperty
-		#tag ViewProperty
-			Name="SelectedTextBackgroundColor"
-			Visible=false
-			Group="Behavior"
-			InitialValue="&c000000"
-			Type="Color"
-			EditorType=""
 		#tag EndViewProperty
 		#tag ViewProperty
 			Name="TextFont"
@@ -1890,6 +2144,84 @@ Inherits TextInputCanvas
 			Group="Behavior"
 			InitialValue=""
 			Type="boolean"
+			EditorType=""
+		#tag EndViewProperty
+		#tag ViewProperty
+			Name="TextAlignment"
+			Visible=false
+			Group="Behavior"
+			InitialValue=""
+			Type="TextAlignments"
+			EditorType="Enum"
+			#tag EnumValues
+				"0 - Default"
+				"1 - Left"
+				"2 - Center"
+				"3 - Right"
+			#tag EndEnumValues
+		#tag EndViewProperty
+		#tag ViewProperty
+			Name="BackgroundColor"
+			Visible=false
+			Group="Behavior"
+			InitialValue="&c000000"
+			Type="Color"
+			EditorType=""
+		#tag EndViewProperty
+		#tag ViewProperty
+			Name="SelLength"
+			Visible=false
+			Group="Behavior"
+			InitialValue=""
+			Type="Integer"
+			EditorType=""
+		#tag EndViewProperty
+		#tag ViewProperty
+			Name="SelStart"
+			Visible=false
+			Group="Behavior"
+			InitialValue=""
+			Type="Integer"
+			EditorType=""
+		#tag EndViewProperty
+		#tag ViewProperty
+			Name="SelTextColor"
+			Visible=false
+			Group="Behavior"
+			InitialValue="&c000000"
+			Type="Color"
+			EditorType=""
+		#tag EndViewProperty
+		#tag ViewProperty
+			Name="Styled"
+			Visible=false
+			Group="Behavior"
+			InitialValue=""
+			Type="Boolean"
+			EditorType=""
+		#tag EndViewProperty
+		#tag ViewProperty
+			Name="TextColor"
+			Visible=false
+			Group="Behavior"
+			InitialValue="&c000000"
+			Type="Color"
+			EditorType=""
+		#tag EndViewProperty
+		#tag ViewProperty
+			Name="SelectedTextBackgroundColor"
+			Visible=false
+			Group="Behavior"
+			InitialValue="&c000000"
+			Type="Color"
+			EditorType=""
+		#tag EndViewProperty
+		#tag ViewProperty
+			Name="HasSelection"
+			Visible=false
+			Group="Behavior"
+			InitialValue=""
+			Type="Boolean"
 			EditorType=""
 		#tag EndViewProperty
 	#tag EndViewBehavior
